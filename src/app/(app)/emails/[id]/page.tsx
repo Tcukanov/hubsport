@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useData } from "@/components/data";
 import { Badge, Button, Card, Empty, Field, Modal, Stat, Tabs, inputCls } from "@/components/ui";
 import { fmtDateTime, pct } from "@/lib/format";
-import { emailRecipients, sendEmail } from "@/lib/mutations";
+import { emailRecipients } from "@/lib/mutations";
 import { displayName } from "@/lib/objects";
 import { renderTokens } from "@/lib/segments";
 import type { DB, MarketingEmail } from "@/lib/types";
@@ -47,8 +47,10 @@ const Mark = ({ on }: { on: boolean }) => (on ? <Check size={15} className="text
 export default function EmailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { db, update, create, mutate } = useData();
+  const { db, update, create, api, mail } = useData();
   const [confirm, setConfirm] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
   const [tab, setTab] = useState<"performance" | "content">("performance");
   const email = db.emails.find((e) => e.id === id);
 
@@ -144,6 +146,7 @@ export default function EmailPage() {
                               {displayName("contacts", c)}
                             </Link>
                             <span className="ml-2 text-xs text-stone-500">{c.email}</span>
+                            {s.error && <span className="ml-2 text-xs text-rose-600">{s.error}</span>}
                           </td>
                           <td className="px-4 py-2">
                             <Mark on={s.delivered} />
@@ -177,7 +180,7 @@ export default function EmailPage() {
                 <Field label="From name">
                   <input className={inputCls} value={email.fromName} onChange={(e) => set({ fromName: e.target.value })} />
                 </Field>
-                <Field label="From address">
+                <Field label="Reply-to address">
                   <input className={inputCls} value={email.fromEmail} onChange={(e) => set({ fromEmail: e.target.value })} />
                 </Field>
               </div>
@@ -226,12 +229,21 @@ export default function EmailPage() {
             <Button onClick={() => setConfirm(false)}>Cancel</Button>
             <Button
               variant="primary"
-              onClick={() => {
-                mutate((d) => sendEmail(d, id));
-                setConfirm(false);
+              disabled={sending || mail.driver === "none"}
+              onClick={async () => {
+                setSending(true);
+                setSendError("");
+                try {
+                  await api(`emails/${id}/send`, {});
+                  setConfirm(false);
+                } catch (err) {
+                  setSendError(err instanceof Error ? err.message : "Sending failed.");
+                } finally {
+                  setSending(false);
+                }
               }}
             >
-              Send to {recipients.length} contact{recipients.length === 1 ? "" : "s"}
+              {sending ? "Sending…" : `Send to ${recipients.length} contact${recipients.length === 1 ? "" : "s"}`}
             </Button>
           </>
         }
@@ -240,7 +252,20 @@ export default function EmailPage() {
           “{email.subject}” will go to <strong>{recipients.length}</strong> subscribed contact{recipients.length === 1 ? "" : "s"}
           {segment ? ` in “${segment.name}”` : ""}.
         </p>
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">This is a demo: no real email leaves the app. Delivery, opens and clicks are simulated so you can explore the reporting.</p>
+        {mail.driver === "none" ? (
+          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900">Email sending is not set up on this deployment. Add RESEND_API_KEY (or SMTP settings) to the environment variables and redeploy.</p>
+        ) : mail.driver === "outbox" ? (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Development mode: no mail provider is configured, so each message is saved as a file in data/outbox instead of being delivered.</p>
+        ) : (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            These are real emails, sent from {mail.from}. Opens and clicks are tracked, and every message carries an unsubscribe link.
+          </p>
+        )}
+        {sendError && (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900">
+            {sendError}
+          </p>
+        )}
       </Modal>
     </div>
   );

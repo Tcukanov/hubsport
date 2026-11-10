@@ -9,18 +9,21 @@ import {
   Filter,
   Handshake,
   Home,
+  LogOut,
   Mail,
   Menu,
-  RotateCcw,
   Search,
+  Settings,
+  Target,
   Users,
   Waypoints,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { displayName } from "@/lib/objects";
-import { useData } from "./data";
+import { call, useData } from "./data";
 import { Avatar, cx } from "./ui";
 
 const NAV = [
@@ -38,15 +41,22 @@ const NAV = [
   {
     label: "Marketing",
     items: [
-      { href: "/emails", label: "Emails", icon: Mail },
+      { href: "/emails", label: "Marketing emails", icon: Mail },
       { href: "/forms", label: "Forms", icon: ClipboardList },
     ],
   },
   {
-    label: "Reporting",
+    label: "Sales",
     items: [
+      { href: "/prospecting", label: "Prospecting agent", icon: Target },
       { href: "/activity", label: "Activity feed", icon: Activity },
+    ],
+  },
+  {
+    label: "Platform",
+    items: [
       { href: "/dashboards", label: "Dashboards", icon: BarChart3 },
+      { href: "/automation", label: "Automation", icon: Workflow },
     ],
   },
 ];
@@ -81,7 +91,7 @@ function GlobalSearch() {
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Search contacts, companies, deals"
-        className="w-full rounded-md border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-violet-500 focus:bg-white"
+        className="w-full rounded-full border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-violet-500 focus:bg-white"
       />
       {open && q.trim() && (
         <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg">
@@ -109,58 +119,85 @@ function GlobalSearch() {
   );
 }
 
+function UserMenu() {
+  const { me } = useData();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative ml-auto">
+      <button type="button" aria-label="Account menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} onBlur={() => setTimeout(() => setOpen(false), 150)} className="flex items-center gap-2 rounded-full p-1 text-sm text-stone-700 hover:bg-stone-100">
+        <span className="hidden pl-2 sm:inline">{me.name}</span>
+        <Avatar name={me.name} color={me.color} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-40 mt-1 w-56 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+          <div className="border-b border-stone-100 px-3 py-2">
+            <p className="truncate text-sm font-medium text-stone-900">{me.name}</p>
+            <p className="truncate text-xs text-stone-500">{me.email}</p>
+          </div>
+          <button type="button" onMouseDown={() => router.push("/settings")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50">
+            <Settings size={15} />
+            Settings and users
+          </button>
+          <button
+            type="button"
+            onMouseDown={async () => {
+              await call("auth/logout", {});
+              window.location.href = "/login";
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50"
+          >
+            <LogOut size={15} />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { me, reset } = useData();
   const [navOpen, setNavOpen] = useState(false);
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  const link = (item: { href: string; label: string; icon: typeof Home }) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      onClick={() => setNavOpen(false)}
+      className={cx("flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium", isActive(item.href) ? "bg-white/10 text-white" : "text-stone-300 hover:bg-white/5 hover:text-white")}
+    >
+      <item.icon size={17} />
+      {item.label}
+    </Link>
+  );
 
   const nav = (
-    <nav className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-4">
-      <Link href="/" className="flex items-center gap-2 px-2 text-stone-900" onClick={() => setNavOpen(false)}>
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white">
+    <nav className="flex h-full flex-col gap-4 overflow-y-auto bg-stone-900 px-3 py-4">
+      <Link href="/" className="flex items-center gap-2 px-2 text-white" onClick={() => setNavOpen(false)}>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500 text-white">
           <Waypoints size={18} />
         </span>
         <span className="text-lg font-semibold tracking-tight">Pipeline</span>
       </Link>
       {NAV.map((group) => (
         <div key={group.label || "top"}>
-          {group.label && <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-stone-400">{group.label}</p>}
-          {group.items.map((item) => {
-            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setNavOpen(false)}
-                className={cx(
-                  "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium",
-                  active ? "bg-violet-50 text-violet-700" : "text-stone-600 hover:bg-stone-100 hover:text-stone-900",
-                )}
-              >
-                <item.icon size={17} />
-                {item.label}
-              </Link>
-            );
-          })}
+          {group.label && <p className="mb-1 px-2.5 text-xs font-medium text-stone-500">{group.label}</p>}
+          {group.items.map(link)}
         </div>
       ))}
-      <button
-        type="button"
-        onClick={() => window.confirm("Reset everything back to the demo data?") && reset()}
-        className="mt-auto flex items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm text-stone-500 hover:bg-stone-100 hover:text-stone-900"
-      >
-        <RotateCcw size={16} />
-        Reset demo data
-      </button>
+      <div className="mt-auto border-t border-white/10 pt-3">{link({ href: "/settings", label: "Settings", icon: Settings })}</div>
     </nav>
   );
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 border-r border-stone-200 bg-white lg:block">{nav}</aside>
+      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 lg:block">{nav}</aside>
       {navOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-900/40 lg:hidden" onClick={() => setNavOpen(false)}>
-          <aside className="h-full w-64 bg-white" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-stone-900/50 lg:hidden" onClick={() => setNavOpen(false)}>
+          <aside className="h-full w-64" onClick={(e) => e.stopPropagation()}>
             {nav}
           </aside>
         </div>
@@ -171,10 +208,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
           <GlobalSearch />
-          <div className="ml-auto flex items-center gap-2 text-sm text-stone-700">
-            <span className="hidden sm:inline">{me.name}</span>
-            <Avatar name={me.name} color={me.color} />
-          </div>
+          <UserMenu />
         </header>
         <main className="min-w-0 flex-1 px-4 py-6 lg:px-8">{children}</main>
       </div>

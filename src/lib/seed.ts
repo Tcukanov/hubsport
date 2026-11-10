@@ -1,4 +1,4 @@
-import type { Activity, Company, Contact, DB, Deal, Send, Submission, Task } from "./types";
+import type { Activity, Company, Contact, DB, Deal, Send, Submission, Task, User } from "./types";
 import { ymd } from "./format";
 
 function rng(seed: number) {
@@ -49,7 +49,8 @@ const SUBJECTS = ["Following up on our call", "Pricing overview", "Quick questio
 const PRODUCTS = ["Annual plan", "Pilot", "Expansion", "Renewal", "Onboarding package", "Team licence"];
 const STAGES = ["lead_in", "lead_in", "qualified", "qualified", "demo", "demo", "proposal", "proposal", "negotiation", "won", "won", "won", "won", "lost", "lost"];
 
-export function buildSeed(): DB {
+/** Demo data for a new workspace. `me` is the person who just signed up. */
+export function buildSeed(me: User): DB {
   const r = rng(42);
   const pick = <T,>(a: T[]): T => a[Math.floor(r() * a.length)];
   const int = (min: number, max: number) => Math.floor(min + r() * (max - min + 1));
@@ -57,11 +58,11 @@ export function buildSeed(): DB {
   const ago = (days: number) => new Date(now - days * 864e5).toISOString();
   const day = (offset: number) => ymd(new Date(now + offset * 864e5));
 
-  const users = [
-    { id: "u_1", name: "Alex Carter", email: "alex@pipeline.example", color: "#7c3aed" },
-    { id: "u_2", name: "Jamie Osei", email: "jamie@pipeline.example", color: "#0d9488" },
-    { id: "u_3", name: "Robin Vega", email: "robin@pipeline.example", color: "#d97706" },
-    { id: "u_4", name: "Sasha Lind", email: "sasha@pipeline.example", color: "#db2777" },
+  const users: User[] = [
+    me,
+    { id: "u_demo2", name: "Jamie Osei", email: "jamie@pipeline.example", color: "#0d9488", demo: true },
+    { id: "u_demo3", name: "Robin Vega", email: "robin@pipeline.example", color: "#d97706", demo: true },
+    { id: "u_demo4", name: "Sasha Lind", email: "sasha@pipeline.example", color: "#db2777", demo: true },
   ];
   const owner = () => pick(users).id;
 
@@ -170,7 +171,7 @@ export function buildSeed(): DB {
       priority: pick(["low", "medium", "high"]),
       dueDate: day(i < 4 ? 0 : int(-4, 12)),
       status: done ? "done" : "open",
-      ownerId: i < 8 ? "u_1" : owner(),
+      ownerId: i < 8 ? me.id : owner(),
       contactId: c.id,
       companyId: c.companyId,
       dealId: null,
@@ -240,7 +241,7 @@ export function buildSeed(): DB {
       log({ type: "form_submission", body: `Submitted the form "${form.name}"`, contactId: c.id, companyId: c.companyId, userId: null, createdAt: c.createdAt });
     });
 
-  const baseEmail = { fromName: "Alex at Pipeline", fromEmail: "alex@pipeline.example", ctaUrl: "https://example.com" };
+  const baseEmail = { fromName: `${me.name.split(" ")[0]} at Pipeline`, fromEmail: me.email, ctaUrl: "https://example.com" };
   const emails = [
     {
       ...baseEmail,
@@ -298,5 +299,43 @@ export function buildSeed(): DB {
   sendTo("e_1", contacts.filter((c) => c.subscribed && new Date(c.createdAt) < new Date(ago(21))), ago(21), "October product update");
   sendTo("e_2", contacts.filter((c) => c.subscribed && c.lifecycleStage === "customer" && new Date(c.createdAt) < new Date(ago(8))), ago(8), "Customer check-in");
 
-  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends };
+  const workflows = [
+    {
+      id: "w_1",
+      name: "Demo request follow-up",
+      enabled: true,
+      trigger: { type: "form_submitted", value: "f_2" },
+      actions: [
+        { type: "set_property" as const, field: "lifecycleStage", value: "mql" },
+        { type: "create_task" as const, title: "Call {{firstName}} {{lastName}} about their demo request", dueInDays: 1, priority: "high" },
+        { type: "send_email" as const, subject: "Thanks for your interest, {{firstName}}", body: "Hi {{firstName}},\n\nThanks for requesting a demo. Someone from our team will call you within one business day to find a time.\n\nTalk soon." },
+      ],
+      createdAt: ago(60),
+      updatedAt: ago(60),
+    },
+    {
+      id: "w_2",
+      name: "Won deal handover",
+      enabled: true,
+      trigger: { type: "deal_stage_changed", value: "won" },
+      actions: [
+        { type: "set_property" as const, field: "lifecycleStage", value: "customer" },
+        { type: "create_task" as const, title: "Schedule onboarding kickoff for {{company}}", dueInDays: 3, priority: "medium" },
+        { type: "add_note" as const, body: "Deal closed won. Handover to onboarding started automatically." },
+      ],
+      createdAt: ago(45),
+      updatedAt: ago(45),
+    },
+    {
+      id: "w_3",
+      name: "Welcome new subscribers",
+      enabled: false,
+      trigger: { type: "form_submitted", value: "f_1" },
+      actions: [{ type: "send_email" as const, subject: "Welcome aboard, {{firstName}}", body: "Hi {{firstName}},\n\nThanks for subscribing. You will hear from us about once a month." }],
+      createdAt: ago(30),
+      updatedAt: ago(30),
+    },
+  ];
+
+  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends, workflows, workflowRuns: [], prospects: [] };
 }

@@ -12,10 +12,10 @@ import { displayName } from "@/lib/objects";
 type View = "open" | "today" | "overdue" | "upcoming" | "done";
 
 export default function TasksPage() {
-  const { db, create, update, remove } = useData();
+  const { db, create, update, remove, me } = useData();
   const [view, setView] = useState<View>("open");
   const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState({ title: "", type: "todo", priority: "medium", dueDate: addDays(1), contactId: "", ownerId: "u_1" });
+  const [draft, setDraft] = useState({ title: "", type: "todo", priority: "medium", dueDate: addDays(1), contactId: "", ownerId: me.id });
   const today = todayYmd();
 
   const groups: Record<View, typeof db.tasks> = {

@@ -8,7 +8,7 @@ import { Badge, Button, Card, Empty, PageHeader } from "@/components/ui";
 import { fmtDate, pct } from "@/lib/format";
 
 export default function EmailsPage() {
-  const { db, create, remove } = useData();
+  const { db, create, remove, me } = useData();
   const router = useRouter();
 
   return (
@@ -21,8 +21,8 @@ export default function EmailsPage() {
               name: "Untitled email",
               subject: "",
               previewText: "",
-              fromName: "Alex at Pipeline",
-              fromEmail: "alex@pipeline.example",
+              fromName: `${me.name.split(" ")[0]} at Pipeline`,
+              fromEmail: me.email,
               body: "Hi {{firstName}},\n\nWrite your message here.",
               ctaLabel: "",
               ctaUrl: "https://example.com",

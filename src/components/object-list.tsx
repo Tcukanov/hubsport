@@ -13,12 +13,13 @@ const PAGE = 25;
 
 export function CreateRecordDrawer({ kind, open, onClose, initial }: { kind: ObjectKind; open: boolean; onClose: () => void; initial?: Patch }) {
   const cfg = OBJECTS[kind];
-  const { db, create } = useData();
-  const [values, setValues] = useState<Patch>(() => ({ ...cfg.defaults(), ...initial }));
+  const { db, create, me } = useData();
+  const blank = () => ({ ...cfg.defaults(), ownerId: me.id, ...initial });
+  const [values, setValues] = useState<Patch>(blank);
   const nameOk = kind === "contacts" ? values.email || values.firstName || values.lastName : values.name;
 
   const close = () => {
-    setValues({ ...cfg.defaults(), ...initial });
+    setValues(blank());
     onClose();
   };
   const save = () => {

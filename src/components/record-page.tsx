@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { CALL_OUTCOMES, DEAL_STAGES, PRIORITIES, TASK_TYPES } from "@/lib/config";
 import { addDays, fmtDate, money, todayYmd } from "@/lib/format";
-import { logActivity } from "@/lib/mutations";
 import { OBJECTS, displayName, type ObjectKind } from "@/lib/objects";
 import type { AnyRec, Task } from "@/lib/types";
 import { useData } from "./data";
@@ -24,22 +23,46 @@ const ACTIONS: { type: Composer; label: string; icon: typeof Mail }[] = [
   { type: "meeting", label: "Meeting", icon: CalendarDays },
 ];
 
-function ComposerModal({ type, links, onClose }: { type: Composer; links: { contactId: string | null; companyId: string | null; dealId: string | null }; onClose: () => void }) {
-  const { mutate, create } = useData();
+function ComposerModal({
+  type,
+  links,
+  recipients,
+  onClose,
+}: {
+  type: Composer;
+  links: { contactId: string | null; companyId: string | null; dealId: string | null };
+  /** Contacts an email can go to from this record. */
+  recipients: { id: string; label: string }[];
+  onClose: () => void;
+}) {
+  const { log, create, api, me, mail } = useData();
+  const [to, setTo] = useState(recipients[0]?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [subject, setSubject] = useState(type === "call" ? CALL_OUTCOMES[0] : "");
   const [body, setBody] = useState("");
   const [due, setDue] = useState(addDays(1));
   const [priority, setPriority] = useState("medium");
   const [taskType, setTaskType] = useState("todo");
 
-  const titles: Record<Composer, string> = { note: "Add a note", email: "Log an email", call: "Log a call", meeting: "Log a meeting", task: "Create a task" };
-  const ok = type === "task" ? subject.trim() : type === "note" ? body.trim() : subject.trim() || body.trim();
+  const titles: Record<Composer, string> = { note: "Add a note", email: "Send an email", call: "Log a call", meeting: "Log a meeting", task: "Create a task" };
+  const ok = type === "task" ? subject.trim() : type === "note" ? body.trim() : type === "email" ? to && subject.trim() && body.trim() && mail.driver !== "none" : subject.trim() || body.trim();
 
-  const save = () => {
-    if (type === "task") {
-      create("tasks", { title: subject.trim(), type: taskType, priority, dueDate: due, status: "open", ownerId: "u_1", notes: body, completedAt: null, ...links });
+  const save = async () => {
+    if (type === "email") {
+      setBusy(true);
+      setError("");
+      try {
+        await api("send-email", { contactId: to, subject: subject.trim(), body: body.trim(), dealId: links.dealId });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Sending failed.");
+        setBusy(false);
+        return;
+      }
+    } else if (type === "task") {
+      create("tasks", { title: subject.trim(), type: taskType, priority, dueDate: due, status: "open", ownerId: me.id, notes: body, completedAt: null, ...links });
     } else {
-      mutate((db) => logActivity(db, { type, subject: type === "note" ? undefined : subject.trim(), body: body.trim(), ...links }));
+      log({ type, subject: type === "note" ? undefined : subject.trim(), body: body.trim(), ...links });
     }
     onClose();
   };
@@ -52,12 +75,24 @@ function ComposerModal({ type, links, onClose }: { type: Composer; links: { cont
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" disabled={!ok} onClick={save}>
-            Save
+          <Button variant="primary" disabled={!ok || busy} onClick={save}>
+            {type === "email" ? (busy ? "Sending…" : "Send") : "Save"}
           </Button>
         </>
       }
     >
+      {type === "email" && (
+        <Field label="To">
+          <select className={inputCls} value={to} onChange={(e) => setTo(e.target.value)}>
+            {recipients.length === 0 && <option value="">No associated contact with an email address</option>}
+            {recipients.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       {type === "call" && (
         <Field label="Outcome">
           <select className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)}>
@@ -100,7 +135,20 @@ function ComposerModal({ type, links, onClose }: { type: Composer; links: { cont
       <Field label={type === "note" ? "Note" : type === "email" ? "Email body" : "Notes"}>
         <textarea autoFocus={type === "note" || type === "call"} rows={5} className={inputCls} value={body} onChange={(e) => setBody(e.target.value)} />
       </Field>
-      {type === "email" && <p className="text-xs text-stone-500">This records the email on the timeline. Nothing is actually sent from this demo.</p>}
+      {type === "email" && (
+        <p className="text-xs text-stone-500">
+          {mail.driver === "none"
+            ? "Email sending is not set up on this deployment yet."
+            : mail.driver === "outbox"
+              ? "Development mode: the message is saved to data/outbox instead of being delivered."
+              : `Sent for real from ${mail.from}, with replies going to ${me.email}. It is also logged on the timeline.`}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900">
+          {error}
+        </p>
+      )}
     </Modal>
   );
 }
@@ -226,6 +274,10 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
 
   const mine = (x: { contactId: string | null; companyId: string | null; dealId: string | null }) =>
     kind === "contacts" ? x.contactId === id : kind === "deals" ? x.dealId === id : x.companyId === id || (!!x.contactId && contactIdsOfCompany.has(x.contactId));
+
+  const recipients = (kind === "contacts" ? [rec] : kind === "companies" ? db.contacts.filter((c) => c.companyId === id) : db.contacts.filter((c) => rec.contactIds.includes(c.id)))
+    .filter((c) => c.email)
+    .map((c) => ({ id: c.id as string, label: `${displayName("contacts", c)} <${c.email}>` }));
 
   const activities = db.activities.filter(mine).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const tasks = db.tasks.filter(mine).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
@@ -397,7 +449,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
         </div>
       </div>
 
-      {composer && <ComposerModal type={composer} links={links} onClose={() => setComposer(null)} />}
+      {composer && <ComposerModal type={composer} links={links} recipients={recipients} onClose={() => setComposer(null)} />}
     </div>
   );
 }

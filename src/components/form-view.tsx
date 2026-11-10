@@ -5,9 +5,11 @@ import type { Form } from "@/lib/types";
 import { Button, inputCls } from "./ui";
 
 /** The form as a visitor sees it. Used by the builder preview and the public page. */
-export function FormView({ form, onSubmit }: { form: Form; onSubmit?: (values: Record<string, string>) => void }) {
+export function FormView({ form, onSubmit }: { form: Form; onSubmit?: (values: Record<string, string>) => unknown }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   if (done)
     return (
@@ -19,11 +21,19 @@ export function FormView({ form, onSubmit }: { form: Form; onSubmit?: (values: R
   return (
     <form
       className="space-y-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         if (!onSubmit) return;
-        onSubmit(values);
-        setDone(true);
+        setBusy(true);
+        setError("");
+        try {
+          await onSubmit(values);
+          setDone(true);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+        } finally {
+          setBusy(false);
+        }
       }}
     >
       <div>
@@ -49,8 +59,13 @@ export function FormView({ form, onSubmit }: { form: Form; onSubmit?: (values: R
           )}
         </label>
       ))}
-      <Button type="submit" variant="primary" className="w-full">
-        {form.submitText}
+      {error && (
+        <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900">
+          {error}
+        </p>
+      )}
+      <Button type="submit" variant="primary" className="w-full" disabled={busy}>
+        {busy ? "Sending…" : form.submitText}
       </Button>
     </form>
   );

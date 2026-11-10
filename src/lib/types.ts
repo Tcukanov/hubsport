@@ -7,6 +7,9 @@ export interface User {
   name: string;
   email: string;
   color: string;
+  role?: "admin" | "member";
+  /** Sample teammate from the demo data: cannot sign in. */
+  demo?: boolean;
 }
 
 export interface Contact {
@@ -154,7 +157,57 @@ export interface Send {
   delivered: boolean;
   opened: boolean;
   clicked: boolean;
+  /** Why the provider refused the message, when it did. */
+  error?: string;
   createdAt: string;
+}
+
+export interface WorkflowAction {
+  type: "create_task" | "set_property" | "send_email" | "add_note";
+  /** create_task */
+  title?: string;
+  dueInDays?: number;
+  priority?: string;
+  /** set_property */
+  field?: string;
+  value?: string;
+  /** send_email */
+  subject?: string;
+  /** send_email and add_note */
+  body?: string;
+}
+
+export interface Workflow {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger: { type: string; value: string };
+  actions: WorkflowAction[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowRun {
+  id: string;
+  workflowId: string;
+  contactId: string | null;
+  dealId: string | null;
+  summary: string;
+  createdAt: string;
+}
+
+/** An outreach email drafted by the prospecting agent, waiting for a person to review it. */
+export interface Prospect {
+  id: string;
+  contactId: string;
+  status: "draft" | "sent" | "dismissed";
+  research: string;
+  subject: string;
+  body: string;
+  generatedBy: "ai" | "template";
+  createdAt: string;
+  updatedAt: string;
+  sentAt: string | null;
 }
 
 export interface DB {
@@ -169,6 +222,9 @@ export interface DB {
   submissions: Submission[];
   emails: MarketingEmail[];
   sends: Send[];
+  workflows: Workflow[];
+  workflowRuns: WorkflowRun[];
+  prospects: Prospect[];
 }
 
 export type CollectionName = keyof DB;
@@ -185,4 +241,7 @@ export const COLLECTIONS: CollectionName[] = [
   "submissions",
   "emails",
   "sends",
+  "workflows",
+  "workflowRuns",
+  "prospects",
 ];

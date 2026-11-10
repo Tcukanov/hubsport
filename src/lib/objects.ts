@@ -58,7 +58,7 @@ export const OBJECTS: Record<ObjectKind, ObjectCfg> = {
       phone: "",
       jobTitle: "",
       companyId: null,
-      ownerId: "u_1",
+      ownerId: null,
       lifecycleStage: "lead",
       leadStatus: "new",
       city: "",
@@ -85,7 +85,7 @@ export const OBJECTS: Record<ObjectKind, ObjectCfg> = {
     ],
     columns: ["domain", "industry", "size", "city", "ownerId", "createdAt"],
     createKeys: ["name", "domain", "industry", "size", "city", "country", "ownerId"],
-    defaults: () => ({ name: "", domain: "", industry: "Software", size: "11-50", annualRevenue: null, phone: "", city: "", country: "", ownerId: "u_1" }),
+    defaults: () => ({ name: "", domain: "", industry: "Software", size: "11-50", annualRevenue: null, phone: "", city: "", country: "", ownerId: null }),
   },
   deals: {
     singular: "Deal",
@@ -104,7 +104,7 @@ export const OBJECTS: Record<ObjectKind, ObjectCfg> = {
     ],
     columns: ["stage", "amount", "closeDate", "companyId", "ownerId", "priority"],
     createKeys: ["name", "amount", "stage", "closeDate", "companyId", "ownerId", "priority"],
-    defaults: () => ({ name: "", amount: 0, stage: "lead_in", closeDate: addDays(30), ownerId: "u_1", companyId: null, contactIds: [], priority: "medium", dealType: "new" }),
+    defaults: () => ({ name: "", amount: 0, stage: "lead_in", closeDate: addDays(30), ownerId: null, companyId: null, contactIds: [], priority: "medium", dealType: "new" }),
   },
 };
 
