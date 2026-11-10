@@ -1,11 +1,12 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Phone, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { CALL_OUTCOMES } from "@/lib/config";
 import { fmtDateTime } from "@/lib/format";
 import { displayName } from "@/lib/objects";
+import { useCall } from "./call-widget";
 import { useData } from "./data";
 import { Avatar, Badge, Button, Card, Empty, Field, Modal, PageHeader, Stat, inputCls } from "./ui";
 
@@ -20,6 +21,7 @@ const OUTCOME_TONE: Record<string, string> = { Connected: "emerald", "Left voice
 export function ActivityIndex({ type }: { type: "call" | "meeting" }) {
   const copy = COPY[type];
   const { db, log, remove } = useData();
+  const dialer = useCall();
   const [user, setUser] = useState("");
   const [outcome, setOutcome] = useState("");
   const [q, setQ] = useState("");
@@ -49,6 +51,12 @@ export function ActivityIndex({ type }: { type: "call" | "meeting" }) {
   return (
     <div>
       <PageHeader title={copy.title} subtitle={copy.hint}>
+        {type === "call" && (
+          <Button onClick={() => dialer.open()}>
+            <Phone size={16} />
+            Make a call
+          </Button>
+        )}
         <Button variant="primary" onClick={() => setOpen(true)}>
           <Plus size={16} />
           Log a {copy.noun}

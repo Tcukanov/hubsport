@@ -34,6 +34,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { displayName } from "@/lib/objects";
+import { CallProvider, useCall } from "./call-widget";
 import { call, useData } from "./data";
 import { LogoMark } from "./logo";
 import { Avatar, cx } from "./ui";
@@ -151,6 +152,15 @@ function TopIcon({ href, label, badge, children }: { href: string; label: string
   );
 }
 
+function DialButton() {
+  const { open } = useCall();
+  return (
+    <button type="button" aria-label="Make a call" title="Make a call" onClick={() => open()} className="hidden rounded-full p-2 text-white hover:bg-white/15 sm:block">
+      <Phone size={18} strokeWidth={1.75} />
+    </button>
+  );
+}
+
 function AccountMenu() {
   const { me } = useData();
   const router = useRouter();
@@ -191,6 +201,14 @@ function AccountMenu() {
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <CallProvider>
+      <Frame>{children}</Frame>
+    </CallProvider>
+  );
+}
+
+function Frame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { db } = useData();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -275,9 +293,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <TopIcon href="/contacts" label="Create a record">
             <Plus size={18} />
           </TopIcon>
-          <TopIcon href="/calls" label="Calls">
-            <Phone size={18} strokeWidth={1.75} />
-          </TopIcon>
+          <DialButton />
           <TopIcon href="/settings" label="Settings">
             <Settings size={18} strokeWidth={1.75} />
           </TopIcon>

@@ -8,6 +8,7 @@ import { CALL_OUTCOMES, DEAL_STAGES, ORDER_STATUS, PRIORITIES, TASK_TYPES, TICKE
 import { addDays, fmtDate, money, todayYmd } from "@/lib/format";
 import { OBJECTS, displayName, type ObjectKind } from "@/lib/objects";
 import type { AnyRec, Task } from "@/lib/types";
+import { useCall } from "./call-widget";
 import { useData } from "./data";
 import { LineItems, lineTotal } from "./line-items";
 import { PropField, PropValue } from "./props";
@@ -306,6 +307,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
   const { db, update, remove } = useData();
   const [tab, setTab] = useState("all");
   const [composer, setComposer] = useState<Composer | null>(null);
+  const dialer = useCall();
   const rec = (db[kind] as AnyRec[]).find((r) => r.id === id);
 
   const contactIdsOfCompany = useMemo(() => new Set(kind === "companies" ? db.contacts.filter((c) => c.companyId === id).map((c) => c.id) : []), [db.contacts, kind, id]);
@@ -415,7 +417,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
             </div>
             <div className={cx("flex justify-between gap-1 px-3 py-4", !cfg.timeline && "hidden")}>
               {ACTIONS.map((a) => (
-                <button key={a.type} type="button" onClick={() => setComposer(a.type)} className="flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs text-stone-600 hover:bg-stone-100">
+                <button key={a.type} type="button" onClick={() => (a.type === "call" ? dialer.open({ contactId: phones[0]?.id ?? reachable[0]?.id ?? null, links }) : setComposer(a.type))} className="flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs text-stone-600 hover:bg-stone-100">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-700">
                     <a.icon size={15} />
                   </span>
