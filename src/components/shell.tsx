@@ -1,27 +1,33 @@
 "use client";
 
 import {
-  Activity,
   BarChart3,
+  Bell,
   Building2,
   CalendarDays,
-  CheckSquare,
+  ChevronDown,
+  ChevronRight,
   ClipboardList,
+  ContactRound,
+  Ellipsis,
   Filter,
   Handshake,
   Home,
   Inbox,
   LifeBuoy,
+  ListChecks,
+  ListTodo,
   LogOut,
   Mail,
   Menu,
   Package,
+  PanelLeft,
   Phone,
+  Plus,
   Search,
   Settings,
   ShoppingCart,
   Target,
-  Users,
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,54 +35,51 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { displayName } from "@/lib/objects";
 import { call, useData } from "./data";
-import { Logo } from "./logo";
+import { LogoMark } from "./logo";
 import { Avatar, cx } from "./ui";
 
-const NAV = [
-  {
-    label: "",
-    items: [
-      { href: "/", label: "Home", icon: Home },
-      { href: "/inbox", label: "Inbox", icon: Inbox },
-    ],
-  },
-  {
-    label: "CRM",
-    items: [
-      { href: "/contacts", label: "Contacts", icon: Users },
-      { href: "/companies", label: "Companies", icon: Building2 },
-      { href: "/deals", label: "Deals", icon: Handshake },
-      { href: "/tickets", label: "Tickets", icon: LifeBuoy },
-      { href: "/tasks", label: "Tasks", icon: CheckSquare },
-      { href: "/segments", label: "Segments", icon: Filter },
-      { href: "/products", label: "Products", icon: Package },
-      { href: "/orders", label: "Orders", icon: ShoppingCart },
-    ],
-  },
-  {
-    label: "Marketing",
-    items: [
-      { href: "/emails", label: "Marketing emails", icon: Mail },
-      { href: "/forms", label: "Forms", icon: ClipboardList },
-    ],
-  },
-  {
-    label: "Sales",
-    items: [
-      { href: "/prospecting", label: "Prospecting agent", icon: Target },
-      { href: "/calls", label: "Calls", icon: Phone },
-      { href: "/meetings", label: "Meetings", icon: CalendarDays },
-      { href: "/activity", label: "Activity feed", icon: Activity },
-    ],
-  },
-  {
-    label: "Platform",
-    items: [
-      { href: "/dashboards", label: "Dashboards", icon: BarChart3 },
-      { href: "/automation", label: "Automation", icon: Workflow },
-    ],
-  },
+type Item = { href: string; label: string; icon: typeof Home };
+
+const I: Record<string, Item> = {
+  home: { href: "/", label: "Home", icon: Home },
+  contacts: { href: "/contacts", label: "Contacts", icon: ContactRound },
+  companies: { href: "/companies", label: "Companies", icon: Building2 },
+  deals: { href: "/deals", label: "Deals", icon: Handshake },
+  tasks: { href: "/tasks", label: "Tasks", icon: ListTodo },
+  segments: { href: "/segments", label: "Segments", icon: Filter },
+  tickets: { href: "/tickets", label: "Tickets", icon: LifeBuoy },
+  products: { href: "/products", label: "Products", icon: Package },
+  orders: { href: "/orders", label: "Orders", icon: ShoppingCart },
+  inbox: { href: "/inbox", label: "Inbox", icon: Inbox },
+  calls: { href: "/calls", label: "Calls", icon: Phone },
+  meetings: { href: "/meetings", label: "Meetings", icon: CalendarDays },
+  emails: { href: "/emails", label: "Marketing Emails", icon: Mail },
+  forms: { href: "/forms", label: "Forms", icon: ClipboardList },
+  prospecting: { href: "/prospecting", label: "Prospecting Agent", icon: Target },
+  activity: { href: "/activity", label: "Activity Feed", icon: ListChecks },
+  dashboards: { href: "/dashboards", label: "Dashboards", icon: BarChart3 },
+  automation: { href: "/automation", label: "Automation Overview", icon: Workflow },
+  settings: { href: "/settings", label: "Settings", icon: Settings },
+};
+
+/* The sidebar shows the everyday items; everything is also reachable from "More". */
+const PINNED: Item[] = [I.contacts, I.companies, I.deals, I.tasks, I.segments];
+const GROUPS: { label: string; items: Item[] }[] = [
+  { label: "Marketing", items: [I.emails] },
+  { label: "Sales", items: [I.prospecting, I.activity] },
+  { label: "Platform", items: [I.dashboards, I.automation] },
 ];
+const MORE: { label: string; items: Item[] }[] = [
+  { label: "CRM", items: [I.contacts, I.companies, I.deals, I.tickets, I.products, I.orders, I.segments, I.inbox, I.calls, I.meetings, I.tasks] },
+  { label: "Marketing", items: [I.emails, I.forms] },
+  { label: "Sales", items: [I.prospecting, I.activity, I.calls, I.meetings] },
+  { label: "Service", items: [I.tickets, I.inbox] },
+  { label: "Automation", items: [I.automation] },
+  { label: "Reporting", items: [I.dashboards, I.activity] },
+  { label: "Settings", items: [I.settings] },
+];
+
+const CHROME = "bg-[#2e2e2e]";
 
 function GlobalSearch() {
   const { db } = useData();
@@ -100,9 +103,8 @@ function GlobalSearch() {
 
   return (
     <div className="relative w-full max-w-md">
-      <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
       <input
-        aria-label="Search contacts, companies and deals"
+        aria-label="Search contacts, companies, deals and tickets"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -110,9 +112,10 @@ function GlobalSearch() {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder="Search contacts, companies, deals, tickets"
-        className="w-full rounded-full border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-teal-500 focus:bg-white"
+        placeholder="Find in Pipeline"
+        className="w-full rounded-full border border-white/35 bg-transparent py-2 pl-4 pr-10 text-sm text-white outline-none placeholder:text-white/90 focus:border-white focus:bg-white/10"
       />
+      <Search size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-white" />
       {open && q.trim() && (
         <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg">
           {results.length === 0 && <p className="px-3 py-3 text-sm text-stone-500">No matches for “{q}”.</p>}
@@ -139,16 +142,26 @@ function GlobalSearch() {
   );
 }
 
-function UserMenu() {
+function TopIcon({ href, label, badge, children }: { href: string; label: string; badge?: number; children: React.ReactNode }) {
+  return (
+    <Link href={href} aria-label={label} title={label} className="relative hidden rounded-full p-2 text-white hover:bg-white/15 sm:block">
+      {children}
+      {!!badge && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{badge}</span>}
+    </Link>
+  );
+}
+
+function AccountMenu() {
   const { me } = useData();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative ml-auto">
-      <button type="button" aria-label="Account menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} onBlur={() => setTimeout(() => setOpen(false), 150)} className="flex items-center gap-2 rounded-full p-1 text-sm text-stone-700 hover:bg-stone-100">
-        <span className="hidden pl-2 sm:inline">{me.name}</span>
-        <Avatar name={me.name} color={me.color} />
+    <div className="relative">
+      <button type="button" aria-label="Account menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} onBlur={() => setTimeout(() => setOpen(false), 150)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 text-sm font-medium text-white hover:bg-white/15">
+        <Avatar name={me.name} color={me.color} size={24} />
+        <span className="hidden md:inline">{me.name}</span>
+        <ChevronDown size={14} />
       </button>
       {open && (
         <div className="absolute right-0 top-full z-40 mt-1 w-56 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
@@ -179,59 +192,145 @@ function UserMenu() {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [navOpen, setNavOpen] = useState(false);
   const { db } = useData();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [slim, setSlim] = useState(false);
+  const [closed, setClosed] = useState<Record<string, boolean>>({});
+  const [more, setMore] = useState<string | null>(null);
   const unread = db.conversations.filter((c) => c.unread && c.status === "open").length;
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const close = () => {
+    setMobileOpen(false);
+    setMore(null);
+  };
 
-  const link = (item: { href: string; label: string; icon: typeof Home }) => (
+  const link = (item: Item, compact: boolean) => (
     <Link
       key={item.href}
       href={item.href}
-      onClick={() => setNavOpen(false)}
-      className={cx("flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium", isActive(item.href) ? "bg-white/10 text-white" : "text-stone-300 hover:bg-white/5 hover:text-white")}
+      title={compact ? item.label : undefined}
+      onClick={close}
+      className={cx("flex items-center gap-3 rounded-full py-2 text-[15px] text-white", compact ? "justify-center px-2" : "px-4", isActive(item.href) ? "bg-white/25 font-medium" : "hover:bg-white/10")}
     >
-      <item.icon size={17} />
-      {item.label}
-      {item.href === "/inbox" && unread > 0 && <span className="ml-auto rounded-full bg-teal-500 px-1.5 text-xs font-semibold text-white">{unread}</span>}
+      <item.icon size={18} strokeWidth={1.75} className="shrink-0" />
+      {!compact && <span className="truncate">{item.label}</span>}
     </Link>
   );
 
-  const nav = (
-    <nav className="flex h-full flex-col gap-3 overflow-y-auto bg-stone-900 px-3 py-4">
-      <Link href="/" className="px-2" onClick={() => setNavOpen(false)}>
-        <Logo light />
-      </Link>
-      {NAV.map((group) => (
-        <div key={group.label || "top"}>
-          {group.label && <p className="mb-1 px-2.5 text-xs font-medium text-stone-500">{group.label}</p>}
-          {group.items.map(link)}
+  const nav = (compact: boolean) => (
+    <nav className={cx("flex h-full flex-col overflow-y-auto px-2 pb-3", CHROME)}>
+      {link(I.home, compact)}
+      <div className="mx-3 my-3 border-t border-white/30" />
+      <div className="space-y-0.5">{PINNED.map((item) => link(item, compact))}</div>
+
+      {GROUPS.map((group) => (
+        <div key={group.label} className="mt-4">
+          {!compact && (
+            <button type="button" aria-expanded={!closed[group.label]} onClick={() => setClosed((c) => ({ ...c, [group.label]: !c[group.label] }))} className="flex w-full items-center gap-3 rounded-full px-4 py-1.5 text-left text-[15px] text-white/65 hover:text-white">
+              {closed[group.label] ? <ChevronRight size={18} strokeWidth={1.75} /> : <ChevronDown size={18} strokeWidth={1.75} />}
+              {group.label}
+            </button>
+          )}
+          {(compact || !closed[group.label]) && <div className="space-y-0.5">{group.items.map((item) => link(item, compact))}</div>}
         </div>
       ))}
-      <div className="mt-auto border-t border-white/10 pt-3">{link({ href: "/settings", label: "Settings", icon: Settings })}</div>
+
+      <button
+        type="button"
+        aria-expanded={more !== null}
+        onClick={() => setMore((m) => (m === null ? MORE[0].label : null))}
+        title={compact ? "More" : undefined}
+        className={cx("mt-4 flex items-center gap-3 rounded-full py-2 text-[15px] text-white", compact ? "justify-center px-2" : "px-4", more !== null ? "bg-white/25" : "hover:bg-white/10")}
+      >
+        <Ellipsis size={18} className="shrink-0" />
+        {!compact && (
+          <>
+            <span className="flex-1 text-left">More</span>
+            <ChevronRight size={16} />
+          </>
+        )}
+      </button>
+
+      <div className={cx("mt-auto flex pt-4", compact ? "justify-center" : "justify-end px-2")}>
+        <button type="button" aria-label={compact ? "Expand sidebar" : "Collapse sidebar"} title={compact ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setSlim((v) => !v)} className="hidden rounded p-1.5 text-white hover:bg-white/15 lg:block">
+          <PanelLeft size={18} strokeWidth={1.75} />
+        </button>
+      </div>
     </nav>
   );
 
+  const current = MORE.find((g) => g.label === more);
+
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 lg:block">{nav}</aside>
-      {navOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-900/50 lg:hidden" onClick={() => setNavOpen(false)}>
-          <aside className="h-full w-64" onClick={(e) => e.stopPropagation()}>
-            {nav}
-          </aside>
+    <div className={cx("flex h-screen flex-col", CHROME)}>
+      <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 px-3">
+        <button type="button" aria-label="Open menu" className="rounded p-1.5 text-white hover:bg-white/15 lg:hidden" onClick={() => setMobileOpen(true)}>
+          <Menu size={20} />
+        </button>
+        <Link href="/" aria-label="Pipeline home" className={cx("flex shrink-0 items-center pl-2", slim ? "lg:w-10" : "lg:w-56")}>
+          <LogoMark size={28} />
+        </Link>
+        <GlobalSearch />
+        <div className="ml-auto flex items-center gap-1">
+          <TopIcon href="/contacts" label="Create a record">
+            <Plus size={18} />
+          </TopIcon>
+          <TopIcon href="/calls" label="Calls">
+            <Phone size={18} strokeWidth={1.75} />
+          </TopIcon>
+          <TopIcon href="/settings" label="Settings">
+            <Settings size={18} strokeWidth={1.75} />
+          </TopIcon>
+          <TopIcon href="/inbox" label={unread ? `Inbox, ${unread} unread` : "Inbox"} badge={unread}>
+            <Bell size={18} strokeWidth={1.75} />
+          </TopIcon>
+          <span className="mx-2 hidden h-6 border-l border-white/30 sm:block" />
+          <AccountMenu />
         </div>
-      )}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-stone-200 bg-white/90 px-4 py-2.5 backdrop-blur lg:px-8">
-          <button type="button" aria-label="Open menu" className="rounded p-1.5 text-stone-600 hover:bg-stone-100 lg:hidden" onClick={() => setNavOpen(true)}>
-            <Menu size={20} />
-          </button>
-          <GlobalSearch />
-          <UserMenu />
-        </header>
-        <main className="min-w-0 flex-1 px-4 py-6 lg:px-8">{children}</main>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <aside className={cx("hidden shrink-0 lg:block", slim ? "w-14" : "w-60")}>{nav(slim)}</aside>
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={close}>
+            <aside className={cx("h-full w-64 pt-3", CHROME)} onClick={(e) => e.stopPropagation()}>
+              {nav(false)}
+            </aside>
+          </div>
+        )}
+        <main id="main" className="min-w-0 flex-1 overflow-y-auto bg-white px-4 py-6 lg:rounded-tl-2xl lg:px-8">
+          {children}
+        </main>
       </div>
+
+      {current && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMore(null)} />
+          <div className={cx("fixed bottom-4 z-50 flex max-h-[80vh] overflow-hidden rounded-2xl text-white shadow-2xl", CHROME, mobileOpen ? "left-4" : slim ? "left-16" : "left-4 lg:left-[248px]")}>
+            <ul className="w-52 overflow-y-auto border-r border-white/20 p-2">
+              {MORE.map((g) => (
+                <li key={g.label}>
+                  <button type="button" onMouseEnter={() => setMore(g.label)} onClick={() => setMore(g.label)} className={cx("flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[15px]", g.label === more ? "bg-white/20" : "hover:bg-white/10")}>
+                    {g.label}
+                    <ChevronRight size={15} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <ul className="w-56 overflow-y-auto p-2">
+              {current.items.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} onClick={close} className={cx("flex items-center gap-3 rounded-lg px-3 py-2 text-[15px]", isActive(item.href) ? "bg-white/20" : "hover:bg-white/10")}>
+                    <item.icon size={17} strokeWidth={1.75} />
+                    {item.label}
+                    {item.href === "/inbox" && unread > 0 && <span className="ml-auto rounded-full bg-rose-600 px-1.5 text-xs font-semibold">{unread}</span>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
     </div>
   );
 }

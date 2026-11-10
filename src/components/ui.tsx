@@ -13,7 +13,7 @@ export const inputCls =
   "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none placeholder:text-stone-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
 
 const VARIANTS = {
-  primary: "bg-stone-900 text-white hover:bg-stone-700 border-transparent",
+  primary: "bg-teal-900 text-white hover:bg-teal-800 border-transparent",
   secondary: "bg-white text-stone-800 hover:bg-stone-50 border-stone-300",
   ghost: "bg-transparent text-stone-600 hover:bg-stone-100 border-transparent",
   danger: "bg-white text-rose-700 hover:bg-rose-50 border-rose-200",

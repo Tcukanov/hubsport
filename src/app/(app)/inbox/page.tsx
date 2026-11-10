@@ -266,7 +266,7 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="-mx-4 -my-6 flex h-[calc(100vh-57px)] lg:-mx-8">
+    <div className="-mx-4 -my-6 flex h-[calc(100vh-56px)] lg:-mx-8">
       <div className={cx("w-full shrink-0 flex-col border-r border-stone-200 bg-white lg:flex lg:w-80", current ? "hidden" : "flex")}>
         <div className="space-y-3 border-b border-stone-200 p-3">
           <div className="flex items-center justify-between gap-2">
