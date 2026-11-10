@@ -322,7 +322,7 @@ function Frame({ children }: { children: React.ReactNode }) {
       {current && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMore(null)} />
-          <div className={cx("fixed bottom-4 z-50 flex max-h-[80vh] overflow-hidden rounded-2xl text-white shadow-2xl", CHROME, mobileOpen ? "left-4" : slim ? "left-16" : "left-4 lg:left-[248px]")}>
+          <div className={cx("fixed bottom-4 z-50 flex h-[480px] max-h-[calc(100vh-88px)] overflow-hidden rounded-2xl text-white shadow-2xl", CHROME, mobileOpen ? "left-4" : slim ? "left-16" : "left-4 lg:left-[248px]")}>
             <ul className="w-52 overflow-y-auto border-r border-white/20 p-2">
               {MORE.map((g) => (
                 <li key={g.label}>
