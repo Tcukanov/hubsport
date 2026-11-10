@@ -33,7 +33,8 @@ const Note = ({ m }: { m: { ok: boolean; text: string } | null }) =>
   );
 
 export default function SettingsPage() {
-  const { db, me, api, mail, ai, storage, inboundUrl } = useData();
+  const { db, me, api, update, mail, ai, storage, inboundUrl, telephony } = useData();
+  const profile = db.profiles.find((p) => p.id === me.id);
   const admin = me.role === "admin";
   const people = db.users.filter((u) => !u.demo);
   const demo = db.users.filter((u) => u.demo);
@@ -124,6 +125,9 @@ export default function SettingsPage() {
             <Field label="Email">
               <input className={`${inputCls} bg-stone-50 text-stone-500`} value={me.email} readOnly />
             </Field>
+            <Field label="Your phone number (for click-to-call, e.g. +12125550123)">
+              <input key={profile?.phone} type="tel" className={inputCls} defaultValue={profile?.phone ?? ""} placeholder="+12125550123" onBlur={(e) => e.target.value !== (profile?.phone ?? "") && update("profiles", me.id, { phone: e.target.value.trim() })} />
+            </Field>
             <Button disabled={account.busy || !name.trim() || name === me.name} onClick={() => account.run(() => api("account", { name }).then(() => "Name updated."))}>
               Save name
             </Button>
@@ -167,6 +171,13 @@ export default function SettingsPage() {
               {mail.driver === "outbox" && "Development outbox (files in data/outbox)"}
               {mail.driver === "none" && "Set RESEND_API_KEY or SMTP_HOST / SMTP_USER / SMTP_PASS"}
               <Badge tone={mail.driver === "none" ? "rose" : mail.driver === "outbox" ? "amber" : "emerald"}>{mail.driver === "none" ? "Not set up" : mail.driver === "outbox" ? "Dev only" : "Live"}</Badge>
+            </dd>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <dt className="text-stone-600">Phone calling</dt>
+            <dd className="flex items-center gap-2 text-stone-900">
+              {telephony ? "Twilio click-to-call" : "Uses your own phone app (set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM for click-to-call)"}
+              <Badge tone={telephony ? "emerald" : "amber"}>{telephony ? "Live" : "Phone link"}</Badge>
             </dd>
           </div>
           {inboundUrl && (

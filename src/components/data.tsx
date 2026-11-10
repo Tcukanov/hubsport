@@ -14,6 +14,8 @@ interface Info {
   storage: "postgres" | "file";
   mail: { driver: "resend" | "smtp" | "outbox" | "none"; from: string };
   ai: boolean;
+  /** Whether a phone provider is configured for click-to-call. */
+  telephony: boolean;
   /** Webhook address for incoming email. Only sent to admins. */
   inboundUrl: string | null;
 }

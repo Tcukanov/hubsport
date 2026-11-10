@@ -1,4 +1,5 @@
 import type { Activity, Company, Contact, Conversation, DB, Deal, LineItem, Message, Order, Product, Send, Submission, Task, Ticket, User } from "./types";
+import { defaultProfile } from "./booking";
 import { ymd } from "./format";
 
 function rng(seed: number) {
@@ -425,5 +426,5 @@ export function buildSeed(me: User): DB {
     },
   ];
 
-  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends, workflows, workflowRuns: [], prospects: [], tickets, products, orders, conversations, messages };
+  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends, workflows, workflowRuns: [], prospects: [], tickets, products, orders, conversations, messages, profiles: [defaultProfile(me)], bookings: [] };
 }

@@ -5,7 +5,7 @@
    results: the browser applies it instantly, the server applies it for real. */
 import { DEAL_STAGES, LIFECYCLE, TICKET_STATUS, optionLabel } from "./config";
 import { segmentContacts } from "./segments";
-import type { Activity, AnyRec, CollectionName, Contact, Conversation, DB, Patch } from "./types";
+import type { Activity, AnyRec, Booking, CollectionName, Contact, Conversation, DB, Patch, Profile } from "./types";
 
 const PREFIX: Record<CollectionName, string> = {
   users: "u",
@@ -27,6 +27,8 @@ const PREFIX: Record<CollectionName, string> = {
   orders: "o",
   conversations: "cv",
   messages: "m",
+  profiles: "pf",
+  bookings: "b",
 };
 
 export interface Meta {
@@ -150,6 +152,7 @@ export function deleteRecord(db: DB, c: CollectionName, id: string) {
     db.tickets.forEach((x) => x.contactId === id && (x.contactId = null));
     const gone = new Set(db.conversations.filter((x) => x.contactId === id).map((x) => x.id));
     db.conversations = db.conversations.filter((x) => !gone.has(x.id));
+    db.bookings.forEach((x) => x.contactId === id && (x.contactId = null));
     db.messages = db.messages.filter((m) => !gone.has(m.conversationId));
     db.orders.forEach((x) => x.contactId === id && (x.contactId = null));
   }
@@ -180,7 +183,7 @@ export function deleteRecord(db: DB, c: CollectionName, id: string) {
 /* ---- Operations sent from the browser to the server ---- */
 
 /** Collections the browser may change directly. Users, submissions and sends are server-only. */
-export const WRITABLE: CollectionName[] = ["contacts", "companies", "deals", "tasks", "activities", "segments", "forms", "emails", "workflows", "prospects", "tickets", "products", "orders", "conversations", "messages"];
+export const WRITABLE: CollectionName[] = ["contacts", "companies", "deals", "tasks", "activities", "segments", "forms", "emails", "workflows", "prospects", "tickets", "products", "orders", "conversations", "messages", "profiles", "bookings"];
 
 /** Activity types a person can log by hand. System events are written by the server. */
 const LOGGABLE = ["note", "call", "meeting"];
@@ -207,6 +210,7 @@ export function applyOp(db: DB, op: Op, meta: Meta, events: CrmEvent[] = []): An
       if (op.c === "emails") Object.assign(data, { status: "draft", sentAt: null });
       if (op.c === "prospects") throw new Error("Prospects are created by the prospecting agent.");
       if (op.c === "conversations") throw new Error("Conversations start from an incoming or outgoing message.");
+      if (op.c === "profiles" || op.c === "bookings") throw new Error("This cannot be created from the browser.");
       // From the browser, a message can only be an internal note. Real emails go through the reply endpoint.
       if (op.c === "messages") {
         const conversation = db.conversations.find((x) => x.id === data.conversationId);
@@ -222,6 +226,12 @@ export function applyOp(db: DB, op: Op, meta: Meta, events: CrmEvent[] = []): An
         delete patch.status;
         delete patch.sentAt;
       }
+      // People edit only their own settings, and a booking can only be cancelled or restored.
+      if (op.c === "profiles") {
+        if (op.id !== ctx.userId) throw new Error("You can only change your own settings.");
+        delete patch.slug;
+      }
+      if (op.c === "bookings") for (const key of Object.keys(patch)) if (key !== "status") delete patch[key];
       // A draft can be edited or dismissed here, but only the send endpoint marks it sent.
       if (op.c === "prospects") {
         delete patch.sentAt;
@@ -229,6 +239,7 @@ export function applyOp(db: DB, op: Op, meta: Meta, events: CrmEvent[] = []): An
       }
       return updateRecord(db, op.c, op.id, patch);
     }
+    if (op.c === "profiles") throw new Error("Settings cannot be deleted.");
     op.ids.forEach((id) => deleteRecord(db, op.c, id));
     return null;
     },
@@ -251,12 +262,12 @@ const bareSubject = (s: string) =>
     .trim()
     .toLowerCase();
 
-/** An email (or form message) arrived: find its conversation or start one, creating the contact if they are new. */
-export function receiveMessage(db: DB, msg: { email: string; name?: string; subject: string; body: string; channel: Conversation["channel"] }) {
-  const email = msg.email.trim().toLowerCase();
+/** Look a person up by email address, adding them as a new lead when we have never seen them. */
+export function findOrCreateContact(db: DB, rawEmail: string, name: string | undefined, source: string) {
+  const email = rawEmail.trim().toLowerCase();
   let contact = db.contacts.find((c) => c.email.toLowerCase() === email) as Contact | undefined;
   if (!contact) {
-    const [firstName = "", ...rest] = (msg.name ?? "").trim().split(/\s+/);
+    const [firstName = "", ...rest] = (name ?? "").trim().split(/\s+/);
     contact = createRecord(db, "contacts", {
       firstName,
       lastName: rest.join(" "),
@@ -269,10 +280,16 @@ export function receiveMessage(db: DB, msg: { email: string; name?: string; subj
       ownerId: null,
       lifecycleStage: "lead",
       leadStatus: "new",
-      source: msg.channel === "form" ? "form" : "website",
+      source,
       subscribed: false,
     }) as Contact;
   }
+  return contact;
+}
+
+/** An email (or form message) arrived: find its conversation or start one, creating the contact if they are new. */
+export function receiveMessage(db: DB, msg: { email: string; name?: string; subject: string; body: string; channel: Conversation["channel"] }) {
+  const contact = findOrCreateContact(db, msg.email, msg.name, msg.channel === "form" ? "form" : "website");
   // Replies carry our "[#id]" tag in the subject; otherwise match an open thread with the same subject.
   const tagged = msg.subject.match(/\[#([a-z0-9_]+)\]/i)?.[1];
   let conversation =
@@ -297,6 +314,36 @@ export function receiveMessage(db: DB, msg: { email: string; name?: string; subj
   Object.assign(conversation, { status: "open", unread: true, lastMessageAt: nowIso(), updatedAt: nowIso() });
   db.messages.push({ id: newId("messages"), conversationId: conversation.id, direction: "in", body: msg.body, userId: null, createdAt: nowIso() });
   return conversation;
+}
+
+/** Someone picked a slot on a scheduling page. The caller has already checked that the slot is free. */
+export function bookMeeting(db: DB, input: { profile: Profile; start: string; guestName: string; guestEmail: string; notes: string }) {
+  const contact = findOrCreateContact(db, input.guestEmail, input.guestName, "website");
+  const end = new Date(Date.parse(input.start) + input.profile.duration * 60_000).toISOString();
+  const booking: Booking = {
+    id: newId("bookings"),
+    userId: input.profile.id,
+    contactId: contact.id,
+    title: input.profile.meetingTitle || "Meeting",
+    start: input.start,
+    end,
+    status: "scheduled",
+    guestName: input.guestName,
+    guestEmail: contact.email,
+    notes: input.notes,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  };
+  db.bookings.unshift(booking);
+  logActivity(db, {
+    type: "meeting",
+    subject: booking.title,
+    body: `Booked through the scheduling page for ${new Date(input.start).toUTCString()}.${input.notes ? `\n\n"${input.notes}"` : ""}`,
+    contactId: contact.id,
+    companyId: contact.companyId,
+    userId: input.profile.id,
+  });
+  return booking;
 }
 
 /** We sent an email in a conversation (or started one). */

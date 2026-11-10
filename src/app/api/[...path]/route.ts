@@ -2,7 +2,10 @@
    Each handler is named after the request it answers, e.g. "POST auth/login". */
 import { addOutgoing, applyOp, emailRecipients, logActivity, newMeta, randomSeed, receiveMessage, stripQuotedReply, submitForm, withMeta, type CrmEvent, type Meta, type Op } from "@/lib/mutations";
 import { buildSeed } from "@/lib/seed";
-import { HttpError, colorFor, handle, isEmail, json, originOf, publicUser, readBody, requireAdmin, requireUser, str, syncUsers } from "@/lib/server/api";
+import { availableSlots, icsFor } from "@/lib/booking";
+import { bookMeeting } from "@/lib/mutations";
+import { e164, startCall, telephonyConfigured } from "@/lib/server/telephony";
+import { HttpError, colorFor, ensureProfiles, handle, isEmail, json, originOf, publicUser, readBody, requireAdmin, requireUser, str, syncUsers } from "@/lib/server/api";
 import { checkPassword, currentUser, endSession, hashPassword, inboundToken, readToken, shortSig, signToken, startSession } from "@/lib/server/auth";
 import { mailDriver, mailFrom, marketingEmail, plainEmailHtml, sendMail, type MailResult } from "@/lib/server/mailer";
 import { aiConfigured, draftOutreach } from "@/lib/server/prospecting";
@@ -35,6 +38,7 @@ function normalize(db: DB) {
     const kept = new Set(db.conversations.map((c) => c.id));
     db.messages = demo.messages.filter((m) => kept.has(m.conversationId));
   }
+  ensureProfiles(db);
   return db;
 }
 
@@ -182,6 +186,7 @@ const routes: Record<string, Handler> = {
       storage: store.kind,
       mail: { driver: mailDriver(), from: mailFrom() },
       ai: aiConfigured(),
+      telephony: telephonyConfigured(),
       // Only admins see the webhook address, because knowing it lets you post messages into the inbox.
       inboundUrl: user.role === "admin" ? `${originOf(req)}/api/inbound/${inboundToken()}` : null,
     });
@@ -339,6 +344,93 @@ const routes: Record<string, Handler> = {
     if (!r.ok) throw new HttpError(502, `The email could not be sent: ${r.error}`);
     const conv = await getStore().updateDB((d) => withMeta(meta, () => addOutgoing(normalize(d), { contact, subject, body: text })));
     return json({ ok: true, id: conv.id });
+  },
+
+  /* ---------- Calling ---------- */
+
+  // Ring the signed-in user's phone, then connect them to the contact.
+  "POST calls/start": async (req) => {
+    const user = await requireUser();
+    if (!telephonyConfigured()) throw new HttpError(400, "Calling is not set up yet. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM to the environment.");
+    const body = await readBody(req);
+    const db = await loadDB();
+    const contact = db.contacts.find((c) => c.id === body.contactId);
+    const userPhone = e164(db.profiles.find((p) => p.id === user.id)?.phone ?? "");
+    const contactPhone = e164(contact?.phone ?? "");
+    if (!userPhone) throw new HttpError(400, "Add your own phone number in Settings first, in international format (for example +12125550123).");
+    if (!contact || !contactPhone) throw new HttpError(400, "This contact needs a phone number in international format (for example +12125550123).");
+    const r = await startCall({ userPhone, contactPhone, statusUrl: `${originOf(req)}/api/calls/status/${inboundToken()}` });
+    if (!r.ok) throw new HttpError(502, `The call could not be started: ${r.error}`);
+    const ticketId = db.tickets.some((t) => t.id === body.ticketId) ? (body.ticketId as string) : null;
+    const dealId = db.deals.some((d) => d.id === body.dealId) ? (body.dealId as string) : null;
+    await getStore().updateDB((d) =>
+      withMeta(newMeta(user.id), () => logActivity(d, { type: "call", subject: "In progress", body: `Call to ${contactPhone} placed from the CRM.`, callSid: r.sid, contactId: contact.id, companyId: contact.companyId, dealId, ticketId })),
+    );
+    return json({ ok: true });
+  },
+
+  // The phone provider reports how the call ended.
+  "POST calls/status": async (req, token) => {
+    if (token !== inboundToken()) throw new HttpError(404, "Not found.");
+    const form = await req.formData().catch(() => null);
+    const sid = String(form?.get("CallSid") ?? "");
+    const status = String(form?.get("CallStatus") ?? "");
+    const seconds = Number(form?.get("CallDuration") ?? 0) || 0;
+    if (!sid) throw new HttpError(400, "Missing CallSid.");
+    await getStore().updateDB((db) => {
+      const entry = db.activities.find((a) => a.callSid === sid);
+      if (!entry) return;
+      // The provider reports the leg to our user's phone; a very short call means the contact was never reached.
+      entry.subject = status === "completed" && seconds >= 15 ? "Connected" : "No answer";
+      entry.body = `${entry.body.split("\n")[0]}\nEnded: ${status || "unknown"}, ${Math.floor(seconds / 60)}m ${seconds % 60}s.`;
+    });
+    return json({ ok: true });
+  },
+
+  /* ---------- Meeting scheduling (public, no sign-in) ---------- */
+
+  "GET public/booking": async (_req, slug) => {
+    const db = await loadDB();
+    const profile = db.profiles.find((p) => p.slug === slug && p.bookingEnabled);
+    const host = db.users.find((u) => u.id === profile?.id);
+    if (!profile || !host) throw new HttpError(404, "This scheduling page is not available.");
+    return json({ host: host.name, title: profile.meetingTitle, duration: profile.duration, timezone: profile.timezone, days: availableSlots(profile, db.bookings, Date.now()) });
+  },
+
+  "POST public/booking": async (req, slug) => {
+    const body = await readBody(req);
+    const name = str(body.name, 80);
+    const email = str(body.email, 200).toLowerCase();
+    const start = str(body.start, 40);
+    if (!name || !isEmail(email)) throw new HttpError(400, "Please enter your name and a valid email address.");
+    const meta = newMeta(null);
+    const out = await change(meta, (db, events) => {
+      const profile = db.profiles.find((p) => p.slug === slug && p.bookingEnabled);
+      const host = db.users.find((u) => u.id === profile?.id);
+      if (!profile || !host) throw new HttpError(404, "This scheduling page is not available.");
+      // Checked inside the same write that saves the booking, so two people cannot take one slot.
+      if (!availableSlots(profile, db.bookings, Date.now()).some((d) => d.slots.includes(start))) throw new HttpError(409, "That time was just taken. Please pick another one.");
+      const booking = withMeta(meta, () => bookMeeting(db, { profile, start, guestName: name, guestEmail: email, notes: str(body.notes, 1000) }), events);
+      return { booking, host, timezone: profile.timezone };
+    });
+    const { booking, host, timezone } = out.result;
+    const when = `${new Intl.DateTimeFormat("en-US", { timeZone: timezone, dateStyle: "full", timeStyle: "short" }).format(new Date(booking.start))} (${timezone})`;
+    const ics = `${originOf(req)}/api/public/ics/${booking.id}`;
+    if (mailDriver() !== "none") {
+      const guestText = `Hi ${name.split(" ")[0]},\n\nYour meeting with ${host.name} is confirmed.\n\n${booking.title}\n${when}\n\nAdd it to your calendar: ${ics}`;
+      const hostText = `${name} (${email}) booked "${booking.title}" with you.\n\n${when}${booking.notes ? `\n\nTheir note: ${booking.notes}` : ""}\n\nAdd it to your calendar: ${ics}`;
+      await sendMail({ to: email, subject: `Confirmed: ${booking.title} with ${host.name}`, html: plainEmailHtml(guestText), text: guestText, fromName: host.name, replyTo: host.email });
+      await sendMail({ to: host.email, subject: `New booking: ${name}`, html: plainEmailHtml(hostText), text: hostText, fromName: "Pipeline", replyTo: email });
+    }
+    return json({ ok: true, start: booking.start, ics });
+  },
+
+  "GET public/ics": async (_req, id) => {
+    const db = await loadDB();
+    const booking = db.bookings.find((b) => b.id === id);
+    const host = db.users.find((u) => u.id === booking?.userId);
+    if (!booking || !host) throw new HttpError(404, "Not found.");
+    return new Response(icsFor(booking, host), { headers: { "Content-Type": "text/calendar; charset=utf-8", "Content-Disposition": 'attachment; filename="meeting.ics"' } });
   },
 
   /* ---------- Public forms (no sign-in) ---------- */

@@ -28,15 +28,21 @@ function ComposerModal({
   type,
   links,
   recipients,
+  phones,
   onClose,
 }: {
   type: Composer;
   links: { contactId: string | null; companyId: string | null; dealId: string | null; ticketId: string | null };
   /** Contacts an email can go to from this record. */
   recipients: { id: string; label: string }[];
+  /** Contacts with a phone number that can be called from this record. */
+  phones: { id: string; label: string; phone: string }[];
   onClose: () => void;
 }) {
-  const { log, create, api, me, mail } = useData();
+  const { log, create, api, me, mail, telephony } = useData();
+  const [callee, setCallee] = useState(phones[0]?.id ?? "");
+  const [ringing, setRinging] = useState(false);
+  const target = phones.find((p) => p.id === callee);
   const [to, setTo] = useState(recipients[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -93,6 +99,54 @@ function ComposerModal({
             ))}
           </select>
         </Field>
+      )}
+      {type === "call" && phones.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <select aria-label="Who to call" className={`${inputCls} !w-auto flex-1`} value={callee} onChange={(e) => setCallee(e.target.value)}>
+              {phones.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} · {p.phone}
+                </option>
+              ))}
+            </select>
+            {telephony ? (
+              <Button
+                variant="primary"
+                disabled={busy || ringing || !target}
+                onClick={async () => {
+                  setBusy(true);
+                  setError("");
+                  try {
+                    await api("calls/start", { contactId: callee, dealId: links.dealId, ticketId: links.ticketId });
+                    setRinging(true);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "The call could not be started.");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Phone size={15} />
+                {ringing ? "Ringing your phone…" : "Call now"}
+              </Button>
+            ) : (
+              target && (
+                <a href={`tel:${target.phone.replace(/[^+\d]/g, "")}`} className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-stone-700">
+                  <Phone size={15} />
+                  Call with your phone
+                </a>
+              )
+            )}
+          </div>
+          <p className="text-xs text-stone-500">
+            {ringing
+              ? "Pick up your phone to be connected. The call is already on the timeline and updates when it ends, so you can close this window."
+              : telephony
+                ? "Your own phone rings first, then you are connected to the contact. The call is logged automatically."
+                : "Opens your phone or calling app. Log the outcome below when you are done."}
+          </p>
+        </div>
       )}
       {type === "call" && (
         <Field label="Outcome">
@@ -296,6 +350,8 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
           ? db.contacts.filter((c) => rec.contactIds.includes(c.id))
           : db.contacts.filter((c) => c.id === rec.contactId);
   const recipients = reachable.filter((c) => c.email).map((c) => ({ id: c.id as string, label: `${displayName("contacts", c)} <${c.email}>` }));
+
+  const phones = reachable.filter((c) => c.phone).map((c) => ({ id: c.id as string, label: displayName("contacts", c), phone: c.phone as string }));
 
   const activities = db.activities.filter(mine).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const tasks = db.tasks.filter(mine).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
@@ -534,7 +590,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
         </div>
       </div>
 
-      {composer && <ComposerModal type={composer} links={links} recipients={recipients} onClose={() => setComposer(null)} />}
+      {composer && <ComposerModal type={composer} links={links} recipients={recipients} phones={phones} onClose={() => setComposer(null)} />}
     </div>
   );
 }

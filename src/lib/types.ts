@@ -137,6 +137,8 @@ export interface Activity {
   companyId: string | null;
   dealId: string | null;
   ticketId?: string | null;
+  /** Set on calls placed through the phone provider, so its status updates can find the entry. */
+  callSid?: string;
   userId: string | null;
   createdAt: string;
 }
@@ -262,6 +264,38 @@ export interface Prospect {
   sentAt: string | null;
 }
 
+/** Per-user settings: phone number for calling, and the public scheduling page. The id is the user's id. */
+export interface Profile {
+  id: string;
+  phone: string;
+  slug: string;
+  bookingEnabled: boolean;
+  meetingTitle: string;
+  /** Meeting length in minutes. */
+  duration: number;
+  /** Bookable weekdays, 0 = Sunday. */
+  days: number[];
+  startHour: number;
+  endHour: number;
+  timezone: string;
+}
+
+/** A meeting someone booked through a scheduling page. */
+export interface Booking {
+  id: string;
+  userId: string;
+  contactId: string | null;
+  title: string;
+  start: string;
+  end: string;
+  status: "scheduled" | "cancelled";
+  guestName: string;
+  guestEmail: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** One thread in the shared inbox. */
 export interface Conversation {
   id: string;
@@ -308,6 +342,8 @@ export interface DB {
   orders: Order[];
   conversations: Conversation[];
   messages: Message[];
+  profiles: Profile[];
+  bookings: Booking[];
 }
 
 export type CollectionName = keyof DB;
@@ -332,4 +368,6 @@ export const COLLECTIONS: CollectionName[] = [
   "orders",
   "conversations",
   "messages",
+  "profiles",
+  "bookings",
 ];

@@ -1,4 +1,5 @@
 /* Shared helpers for the API routes. */
+import { defaultProfile } from "../booking";
 import type { DB, User } from "../types";
 import { currentUser } from "./auth";
 import { getStore, type AppUser } from "./store";
@@ -63,6 +64,13 @@ export const colorFor = (n: number) => COLORS[n % COLORS.length];
 
 export const publicUser = (u: AppUser): User => ({ id: u.id, name: u.name, email: u.email, color: u.color, role: u.role });
 
+/** Every person who can sign in gets a settings profile (phone number, scheduling page). */
+export function ensureProfiles(db: DB) {
+  db.profiles ??= [];
+  db.bookings ??= [];
+  for (const u of db.users) if (!u.demo && !db.profiles.some((p) => p.id === u.id)) db.profiles.push(defaultProfile(u));
+}
+
 /** Copy the people who can sign in into the CRM data, keeping the demo teammates. */
 export async function syncUsers() {
   const store = getStore();
@@ -72,6 +80,8 @@ export async function syncUsers() {
     const demo = db.users.filter((u) => u.demo);
     demo.forEach((u) => ids.add(u.id));
     db.users = [...users.map(publicUser), ...demo];
+    ensureProfiles(db);
+    db.profiles = db.profiles.filter((p) => ids.has(p.id));
     // Anything owned by a removed user becomes unassigned.
     for (const list of [db.contacts, db.companies, db.deals, db.tasks]) for (const rec of list) if (rec.ownerId && !ids.has(rec.ownerId)) rec.ownerId = null;
   });
