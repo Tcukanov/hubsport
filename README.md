@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pipeline CRM
 
-## Getting Started
+A learning-project CRM built with Next.js, TypeScript and Tailwind.
 
-First, run the development server:
+## What it does
+
+- **Home**: tasks due, pipeline numbers, recent activity
+- **Contacts, Companies, Deals**: searchable tables, record pages with editable properties, activity timeline (notes, calls, emails, meetings, tasks) and associations
+- **Deals board**: drag deals between pipeline stages
+- **Tasks**: due today, overdue, upcoming, completed
+- **Segments**: filter-based contact lists that update live
+- **Forms**: form builder plus a public page (`/f/<id>`); each submission creates or updates a contact
+- **Marketing emails**: editor with personalisation tokens, segment targeting and a simulated send with open and click reporting
+- **Dashboards and activity feed**
+
+## Data
+
+There is no server database. The whole dataset is one JSON object stored in the browser's `localStorage` (`src/components/data.tsx`), seeded with demo data from `src/lib/seed.ts`. Every change goes through the pure functions in `src/lib/mutations.ts`. Each browser has its own copy; use "Reset demo data" in the sidebar to start over. No real email is ever sent.
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

@@ -1,0 +1,302 @@
+import type { Activity, Company, Contact, DB, Deal, Send, Submission, Task } from "./types";
+import { ymd } from "./format";
+
+function rng(seed: number) {
+  let a = seed;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const FIRST = ["Maya", "Liam", "Sofia", "Noah", "Ava", "Ethan", "Zoe", "Lucas", "Mia", "Owen", "Layla", "Caleb", "Nora", "Felix", "Iris", "Jonah", "Priya", "Mateo", "Hana", "Theo", "Amara", "Diego", "Elena", "Kofi", "Ines", "Ravi", "Tessa", "Omar", "Greta", "Jude"];
+const LAST = ["Bennett", "Okafor", "Lindqvist", "Marsh", "Castillo", "Nakamura", "Hale", "Petrov", "Quinn", "Adeyemi", "Fontaine", "Brooks", "Kaur", "Novak", "Sato", "Delgado", "Whitlock", "Moreau", "Ibarra", "Holt"];
+const TITLES = ["Operations Manager", "Head of Marketing", "Founder", "Sales Director", "Office Manager", "CTO", "Procurement Lead", "Events Coordinator", "Finance Manager", "Product Manager"];
+
+const COMPANY_SEED: [string, string, string, string, string][] = [
+  ["Northshore Kayaks", "northshorekayaks.example", "Retail", "Portland", "United States"],
+  ["Brightline Logistics", "brightline.example", "Logistics", "Chicago", "United States"],
+  ["Copperleaf Studio", "copperleaf.example", "Design", "Austin", "United States"],
+  ["Harbor & Pine", "harborpine.example", "Hospitality", "Seattle", "United States"],
+  ["Lumen Dental", "lumendental.example", "Healthcare", "Denver", "United States"],
+  ["Quarry Coffee Roasters", "quarrycoffee.example", "Retail", "Toronto", "Canada"],
+  ["Tidewater Analytics", "tidewater.example", "Software", "Boston", "United States"],
+  ["Fennel Health", "fennelhealth.example", "Healthcare", "London", "United Kingdom"],
+  ["Atlas Robotics", "atlasrobotics.example", "Software", "Berlin", "Germany"],
+  ["Marigold Events", "marigoldevents.example", "Hospitality", "New York", "United States"],
+  ["Slate Architecture", "slatearch.example", "Design", "Amsterdam", "Netherlands"],
+  ["Juniper Schools", "juniperschools.example", "Education", "Dublin", "Ireland"],
+  ["Peakline Fitness", "peakline.example", "Fitness", "Vancouver", "Canada"],
+  ["Orchard Software", "orchardsoft.example", "Software", "San Francisco", "United States"],
+  ["Cobalt Freight", "cobaltfreight.example", "Logistics", "Rotterdam", "Netherlands"],
+  ["Sable Hotels", "sablehotels.example", "Hospitality", "Lisbon", "Portugal"],
+  ["Wren Media", "wrenmedia.example", "Media", "Los Angeles", "United States"],
+  ["Kestrel Energy", "kestrelenergy.example", "Energy", "Houston", "United States"],
+];
+
+const NOTES = [
+  "Great intro call. They are comparing two vendors and want pricing by end of week.",
+  "Asked for a case study from a similar-sized team. Sending the hospitality one.",
+  "Budget is approved for next quarter. Decision maker joins the next call.",
+  "Main concern is onboarding time. Walked through the two-week rollout plan.",
+  "Prefers email over phone. Follow up after their board meeting.",
+  "Interested in the team licence. Needs legal to review the contract terms.",
+];
+const SUBJECTS = ["Following up on our call", "Pricing overview", "Quick question about your rollout", "Next steps", "Case study you asked for"];
+const PRODUCTS = ["Annual plan", "Pilot", "Expansion", "Renewal", "Onboarding package", "Team licence"];
+const STAGES = ["lead_in", "lead_in", "qualified", "qualified", "demo", "demo", "proposal", "proposal", "negotiation", "won", "won", "won", "won", "lost", "lost"];
+
+export function buildSeed(): DB {
+  const r = rng(42);
+  const pick = <T,>(a: T[]): T => a[Math.floor(r() * a.length)];
+  const int = (min: number, max: number) => Math.floor(min + r() * (max - min + 1));
+  const now = Date.now();
+  const ago = (days: number) => new Date(now - days * 864e5).toISOString();
+  const day = (offset: number) => ymd(new Date(now + offset * 864e5));
+
+  const users = [
+    { id: "u_1", name: "Alex Carter", email: "alex@pipeline.example", color: "#7c3aed" },
+    { id: "u_2", name: "Jamie Osei", email: "jamie@pipeline.example", color: "#0d9488" },
+    { id: "u_3", name: "Robin Vega", email: "robin@pipeline.example", color: "#d97706" },
+    { id: "u_4", name: "Sasha Lind", email: "sasha@pipeline.example", color: "#db2777" },
+  ];
+  const owner = () => pick(users).id;
+
+  const companies: Company[] = COMPANY_SEED.map(([name, domain, industry, city, country], i) => {
+    const created = ago(int(40, 300));
+    return {
+      id: `co_${i + 1}`,
+      name,
+      domain,
+      industry,
+      size: pick(["1-10", "11-50", "51-200", "201-1000", "1000+"]),
+      city,
+      country,
+      phone: `+1 555 01${String(10 + i).padStart(2, "0")}`,
+      annualRevenue: int(5, 400) * 100000,
+      ownerId: owner(),
+      createdAt: created,
+      updatedAt: created,
+    };
+  });
+
+  const lifecycle = ["subscriber", "lead", "lead", "lead", "mql", "mql", "sql", "opportunity", "customer", "customer"];
+  const contacts: Contact[] = Array.from({ length: 60 }, (_, i) => {
+    const firstName = FIRST[i % FIRST.length];
+    const lastName = LAST[(i * 7 + 3) % LAST.length];
+    const company = r() < 0.85 ? companies[i % companies.length] : null;
+    const created = ago(int(0, 180));
+    const stage = pick(lifecycle);
+    return {
+      id: `c_${i + 1}`,
+      firstName,
+      lastName,
+      email: `${firstName}.${lastName}@${company?.domain ?? "mail.example"}`.toLowerCase(),
+      phone: `+1 555 02${String(i).padStart(2, "0")}`,
+      jobTitle: pick(TITLES),
+      companyId: company?.id ?? null,
+      ownerId: owner(),
+      lifecycleStage: stage,
+      leadStatus: stage === "customer" ? "connected" : pick(["new", "open", "in_progress", "connected", "unqualified"]),
+      city: company?.city ?? pick(["Miami", "Madrid", "Oslo"]),
+      country: company?.country ?? "United States",
+      source: pick(["website", "form", "referral", "event", "outbound", "ads"]),
+      subscribed: r() < 0.8,
+      createdAt: created,
+      updatedAt: created,
+    };
+  });
+
+  const deals: Deal[] = Array.from({ length: 28 }, (_, i) => {
+    const company = companies[(i * 5 + 2) % companies.length];
+    const stage = STAGES[i % STAGES.length];
+    const closed = stage === "won" || stage === "lost";
+    const created = ago(int(closed ? 30 : 5, closed ? 200 : 60));
+    return {
+      id: `d_${i + 1}`,
+      name: `${company.name} — ${pick(PRODUCTS)}`,
+      amount: int(2, 60) * 1000,
+      stage,
+      closeDate: closed ? day(-int(1, 150)) : day(int(4, 60)),
+      ownerId: owner(),
+      companyId: company.id,
+      contactIds: contacts.filter((c) => c.companyId === company.id).slice(0, int(1, 2)).map((c) => c.id),
+      priority: pick(["low", "medium", "medium", "high"]),
+      dealType: pick(["new", "new", "existing"]),
+      createdAt: created,
+      updatedAt: created,
+    };
+  });
+
+  const activities: Activity[] = [];
+  let an = 0;
+  const log = (a: Partial<Activity> & { type: string; body: string; createdAt: string }) =>
+    activities.push({ id: `a_${++an}`, contactId: null, companyId: null, dealId: null, userId: owner(), ...a });
+
+  contacts.forEach((c) => {
+    log({ type: "created", body: "Contact created", contactId: c.id, companyId: c.companyId, createdAt: c.createdAt });
+    const n = int(0, 3);
+    for (let k = 0; k < n; k++) {
+      const type = pick(["note", "call", "email", "meeting"]);
+      const createdAt = ago(r() * 45);
+      if (new Date(createdAt) < new Date(c.createdAt)) continue;
+      log({
+        type,
+        subject: type === "email" ? pick(SUBJECTS) : type === "meeting" ? "Discovery meeting" : type === "call" ? pick(["Connected", "Left voicemail", "No answer"]) : undefined,
+        body: pick(NOTES),
+        contactId: c.id,
+        companyId: c.companyId,
+        createdAt,
+      });
+    }
+  });
+  deals.forEach((d) => {
+    log({ type: "created", body: "Deal created", dealId: d.id, companyId: d.companyId, createdAt: d.createdAt });
+    if (r() < 0.6) log({ type: "note", body: pick(NOTES), dealId: d.id, companyId: d.companyId, createdAt: ago(r() * 20) });
+  });
+
+  const taskTitles = ["Follow up with", "Send proposal to", "Schedule demo with", "Check in with", "Send contract to", "Call"];
+  const tasks: Task[] = Array.from({ length: 18 }, (_, i) => {
+    const c = contacts[(i * 3 + 1) % contacts.length];
+    const done = i % 5 === 4;
+    const title = pick(taskTitles);
+    return {
+      id: `t_${i + 1}`,
+      title: `${title} ${c.firstName} ${c.lastName}`,
+      type: title === "Call" ? "call" : title.startsWith("Send") ? "email" : "todo",
+      priority: pick(["low", "medium", "high"]),
+      dueDate: day(i < 4 ? 0 : int(-4, 12)),
+      status: done ? "done" : "open",
+      ownerId: i < 8 ? "u_1" : owner(),
+      contactId: c.id,
+      companyId: c.companyId,
+      dealId: null,
+      notes: "",
+      createdAt: ago(int(1, 14)),
+      completedAt: done ? ago(1) : null,
+    };
+  });
+
+  const segments = [
+    { id: "s_1", name: "Customers", match: "all" as const, filters: [{ field: "lifecycleStage", op: "is", value: "customer" }], createdAt: ago(90), updatedAt: ago(90) },
+    { id: "s_2", name: "Newsletter subscribers", match: "all" as const, filters: [{ field: "subscribed", op: "is", value: "true" }], createdAt: ago(80), updatedAt: ago(80) },
+    { id: "s_3", name: "New leads (last 30 days)", match: "all" as const, filters: [{ field: "lifecycleStage", op: "is", value: "lead" }, { field: "createdAt", op: "in_last_days", value: "30" }], createdAt: ago(20), updatedAt: ago(20) },
+    { id: "s_4", name: "Hospitality or events contacts", match: "any" as const, filters: [{ field: "jobTitle", op: "contains", value: "Events" }, { field: "email", op: "contains", value: "hotel" }], createdAt: ago(10), updatedAt: ago(10) },
+  ];
+
+  const forms = [
+    {
+      id: "f_1",
+      name: "Newsletter signup",
+      status: "published" as const,
+      headline: "Get our monthly newsletter",
+      description: "Product news and practical tips, once a month.",
+      fields: [
+        { key: "firstName", label: "First name", type: "text" as const, required: false },
+        { key: "email", label: "Email", type: "email" as const, required: true },
+      ],
+      submitText: "Subscribe",
+      thanksMessage: "Thanks for subscribing! Look out for the next issue.",
+      lifecycleStage: "subscriber",
+      createdAt: ago(120),
+      updatedAt: ago(30),
+    },
+    {
+      id: "f_2",
+      name: "Request a demo",
+      status: "published" as const,
+      headline: "Book a 20-minute demo",
+      description: "Tell us a little about your team and we will be in touch within one business day.",
+      fields: [
+        { key: "firstName", label: "First name", type: "text" as const, required: true },
+        { key: "lastName", label: "Last name", type: "text" as const, required: true },
+        { key: "email", label: "Work email", type: "email" as const, required: true },
+        { key: "phone", label: "Phone", type: "phone" as const, required: false },
+        { key: "message", label: "What would you like to see?", type: "textarea" as const, required: false },
+      ],
+      submitText: "Request demo",
+      thanksMessage: "Thanks! We will reach out shortly to find a time.",
+      lifecycleStage: "lead",
+      createdAt: ago(100),
+      updatedAt: ago(12),
+    },
+  ];
+
+  const submissions: Submission[] = [];
+  contacts
+    .filter((c) => c.source === "form")
+    .forEach((c, i) => {
+      const form = forms[i % 2];
+      submissions.push({
+        id: `sub_${i + 1}`,
+        formId: form.id,
+        contactId: c.id,
+        values: { firstName: c.firstName, lastName: c.lastName, email: c.email },
+        createdAt: c.createdAt,
+      });
+      log({ type: "form_submission", body: `Submitted the form "${form.name}"`, contactId: c.id, companyId: c.companyId, userId: null, createdAt: c.createdAt });
+    });
+
+  const baseEmail = { fromName: "Alex at Pipeline", fromEmail: "alex@pipeline.example", ctaUrl: "https://example.com" };
+  const emails = [
+    {
+      ...baseEmail,
+      id: "e_1",
+      name: "October product update",
+      subject: "What's new this month, {{firstName}}",
+      previewText: "Three improvements you asked for.",
+      body: "Hi {{firstName}},\n\nWe shipped three things this month: faster reporting, a cleaner deal board, and shared task lists.\n\nEverything is live in your account today. Reply to this email if you want a walkthrough.",
+      ctaLabel: "See what's new",
+      segmentId: "s_2",
+      status: "sent" as const,
+      sentAt: ago(21),
+      createdAt: ago(24),
+      updatedAt: ago(21),
+    },
+    {
+      ...baseEmail,
+      id: "e_2",
+      name: "Customer check-in",
+      subject: "How is everything going at {{company}}?",
+      previewText: "A two-minute survey.",
+      body: "Hi {{firstName}},\n\nYou have been with us for a while now, and we would love to hear how things are going.\n\nThe survey takes two minutes and goes straight to the product team.",
+      ctaLabel: "Take the survey",
+      segmentId: "s_1",
+      status: "sent" as const,
+      sentAt: ago(8),
+      createdAt: ago(10),
+      updatedAt: ago(8),
+    },
+    {
+      ...baseEmail,
+      id: "e_3",
+      name: "Winter offer",
+      subject: "A winter offer for new teams",
+      previewText: "Two months free on annual plans.",
+      body: "Hi {{firstName}},\n\nIf you have been thinking about getting started, this is a good moment: annual plans come with two months free until the end of the year.",
+      ctaLabel: "Claim the offer",
+      segmentId: "s_3",
+      status: "draft" as const,
+      sentAt: null,
+      createdAt: ago(2),
+      updatedAt: ago(2),
+    },
+  ];
+
+  const sends: Send[] = [];
+  let sn = 0;
+  const sendTo = (emailId: string, list: Contact[], at: string, name: string) =>
+    list.forEach((c) => {
+      const delivered = r() > 0.03;
+      const opened = delivered && r() < 0.48;
+      sends.push({ id: `sd_${++sn}`, emailId, contactId: c.id, delivered, opened, clicked: opened && r() < 0.3, createdAt: at });
+      log({ type: "marketing_email", subject: name, body: `Was sent the marketing email "${name}"`, contactId: c.id, companyId: c.companyId, userId: null, createdAt: at });
+    });
+  sendTo("e_1", contacts.filter((c) => c.subscribed && new Date(c.createdAt) < new Date(ago(21))), ago(21), "October product update");
+  sendTo("e_2", contacts.filter((c) => c.subscribed && c.lifecycleStage === "customer" && new Date(c.createdAt) < new Date(ago(8))), ago(8), "Customer check-in");
+
+  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends };
+}
