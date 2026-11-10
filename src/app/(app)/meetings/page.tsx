@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ActivityIndex } from "@/components/activity-index";
 import { useData } from "@/components/data";
-import { Badge, Button, Card, Empty, Field, Tabs, Toggle, cx, inputCls } from "@/components/ui";
+import { Badge, Button, Card, Empty, Field, PageHeader, Tabs, Toggle, cx, inputCls } from "@/components/ui";
 import { fmtDateTime } from "@/lib/format";
 import { displayName } from "@/lib/objects";
 
@@ -207,6 +207,7 @@ export default function MeetingsPage() {
 
   return (
     <div>
+      {tab !== "logged" && <PageHeader title="Meetings" subtitle="Meetings booked through your scheduling page, and the page itself." />}
       <Tabs
         value={tab}
         onChange={setTab}

@@ -67,7 +67,8 @@ export function sortValue(def: PropDef | undefined, rec: AnyRec, db: DB): string
 }
 
 /** Editable input for one property. Text-like inputs commit on blur, pickers on change. */
-export function PropField({ def, value, onChange, db }: { def: PropDef; value: unknown; onChange: (v: unknown) => void; db: DB }) {
+/** `live` commits on every keystroke (used in create forms); otherwise text commits when the field loses focus. */
+export function PropField({ def, value, onChange, db, live }: { def: PropDef; value: unknown; onChange: (v: unknown) => void; db: DB; live?: boolean }) {
   const [draft, setDraft] = useState(value ?? "");
   const [seen, setSeen] = useState(value);
   if (seen !== value) {
@@ -105,18 +106,18 @@ export function PropField({ def, value, onChange, db }: { def: PropDef; value: u
     const next = numeric ? (draft === "" ? null : Number(draft)) : draft;
     if (next !== (value ?? "")) onChange(next);
   };
-  if (def.type === "textarea")
-    return <textarea aria-label={def.label} rows={3} className={inputCls} value={draft as string} onChange={(e) => setDraft(e.target.value)} onBlur={commit} />;
+  const typed = (text: string) => {
+    setDraft(text);
+    if (live || def.type === "date") onChange(numeric ? (text === "" ? null : Number(text)) : text);
+  };
+  if (def.type === "textarea") return <textarea aria-label={def.label} rows={3} className={inputCls} value={draft as string} onChange={(e) => typed(e.target.value)} onBlur={commit} />;
   return (
     <input
       aria-label={def.label}
       className={inputCls}
       type={numeric ? "number" : def.type === "date" ? "date" : def.type === "email" ? "email" : "text"}
       value={draft as string | number}
-      onChange={(e) => {
-        setDraft(e.target.value);
-        if (def.type === "date") onChange(e.target.value);
-      }}
+      onChange={(e) => typed(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
     />

@@ -48,7 +48,7 @@ export function CreateRecordDrawer({ kind, open, onClose, initial }: { kind: Obj
         const def = cfg.props.find((p) => p.key === key)!;
         return (
           <Field key={key} label={def.label}>
-            <PropField def={def} value={values[key]} db={db} onChange={(v) => setValues((s) => ({ ...s, [key]: v }))} />
+            <PropField live def={def} value={values[key]} db={db} onChange={(v) => setValues((s) => ({ ...s, [key]: v }))} />
           </Field>
         );
       })}

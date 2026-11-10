@@ -396,7 +396,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
       )}
 
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Card>
             <div className="flex items-center gap-3 px-4 pt-4">
               <Avatar name={name} color={{ contacts: "#0f766e", companies: "#0d9488", deals: "#d97706", tickets: "#2563eb", products: "#57534e", orders: "#059669" }[kind]} size={44} />
@@ -523,7 +523,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
           )}
         </div>
 
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           {kind === "contacts" && (
             <>
               <AssocCard title="Company" items={companyItems} />

@@ -33,8 +33,9 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { displayName } from "@/lib/objects";
+import { OBJECTS, displayName, type ObjectKind } from "@/lib/objects";
 import { CallProvider, useCall } from "./call-widget";
+import { CreateRecordDrawer } from "./object-list";
 import { call, useData } from "./data";
 import { LogoMark } from "./logo";
 import { Avatar, cx } from "./ui";
@@ -149,6 +150,34 @@ function TopIcon({ href, label, badge, children }: { href: string; label: string
       {children}
       {!!badge && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{badge}</span>}
     </Link>
+  );
+}
+
+const CREATABLE: ObjectKind[] = ["contacts", "companies", "deals", "tickets", "products", "orders"];
+
+function CreateMenu() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<ObjectKind | null>(null);
+  return (
+    <div className="relative hidden sm:block">
+      <button type="button" aria-label="Create a record" title="Create a record" aria-expanded={open} onClick={() => setOpen((v) => !v)} onBlur={() => setTimeout(() => setOpen(false), 150)} className="rounded-full p-2 text-white hover:bg-white/15">
+        <Plus size={18} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-40 mt-1 w-44 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+          {CREATABLE.map((k) => (
+            <button key={k} type="button" onMouseDown={() => setKind(k)} className="block w-full px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50">
+              {OBJECTS[k].singular}
+            </button>
+          ))}
+          <button type="button" onMouseDown={() => router.push("/tasks")} className="block w-full border-t border-stone-100 px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50">
+            Task
+          </button>
+        </div>
+      )}
+      {kind && <CreateRecordDrawer key={kind} kind={kind} open onClose={() => setKind(null)} />}
+    </div>
   );
 }
 
@@ -290,9 +319,7 @@ function Frame({ children }: { children: React.ReactNode }) {
         </Link>
         <GlobalSearch />
         <div className="ml-auto flex items-center gap-1">
-          <TopIcon href="/contacts" label="Create a record">
-            <Plus size={18} />
-          </TopIcon>
+          <CreateMenu />
           <DialButton />
           <TopIcon href="/settings" label="Settings">
             <Settings size={18} strokeWidth={1.75} />

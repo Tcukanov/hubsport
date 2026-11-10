@@ -54,8 +54,12 @@ function Thread({ conversation, onBack }: { conversation: Conversation; onBack: 
   // Opening a thread marks it as read, and new messages scroll into view.
   useEffect(() => {
     if (conversation.unread) update("conversations", conversation.id, { unread: false });
+    // `update` is a new function after every data refresh; listing it would re-run this needlessly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation.id, conversation.unread]);
+  useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
-  }, [conversation.id, conversation.unread, messages.length, update]);
+  }, [conversation.id, messages.length]);
 
   const submit = async () => {
     const body = text.trim();
