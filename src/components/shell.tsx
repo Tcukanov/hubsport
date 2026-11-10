@@ -10,6 +10,7 @@ import {
   Filter,
   Handshake,
   Home,
+  Inbox,
   LifeBuoy,
   LogOut,
   Mail,
@@ -32,7 +33,13 @@ import { Logo } from "./logo";
 import { Avatar, cx } from "./ui";
 
 const NAV = [
-  { label: "", items: [{ href: "/", label: "Home", icon: Home }] },
+  {
+    label: "",
+    items: [
+      { href: "/", label: "Home", icon: Home },
+      { href: "/inbox", label: "Inbox", icon: Inbox },
+    ],
+  },
   {
     label: "CRM",
     items: [
@@ -173,6 +180,8 @@ function UserMenu() {
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
+  const { db } = useData();
+  const unread = db.conversations.filter((c) => c.unread && c.status === "open").length;
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   const link = (item: { href: string; label: string; icon: typeof Home }) => (
@@ -184,6 +193,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     >
       <item.icon size={17} />
       {item.label}
+      {item.href === "/inbox" && unread > 0 && <span className="ml-auto rounded-full bg-teal-500 px-1.5 text-xs font-semibold text-white">{unread}</span>}
     </Link>
   );
 

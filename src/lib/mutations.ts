@@ -5,7 +5,7 @@
    results: the browser applies it instantly, the server applies it for real. */
 import { DEAL_STAGES, LIFECYCLE, TICKET_STATUS, optionLabel } from "./config";
 import { segmentContacts } from "./segments";
-import type { Activity, AnyRec, CollectionName, Contact, DB, Patch } from "./types";
+import type { Activity, AnyRec, CollectionName, Contact, Conversation, DB, Patch } from "./types";
 
 const PREFIX: Record<CollectionName, string> = {
   users: "u",
@@ -25,6 +25,8 @@ const PREFIX: Record<CollectionName, string> = {
   tickets: "tk",
   products: "pr",
   orders: "o",
+  conversations: "cv",
+  messages: "m",
 };
 
 export interface Meta {
@@ -146,6 +148,9 @@ export function deleteRecord(db: DB, c: CollectionName, id: string) {
     db.prospects = db.prospects.filter((p) => p.contactId !== id);
     db.submissions.forEach((s) => s.contactId === id && (s.contactId = null));
     db.tickets.forEach((x) => x.contactId === id && (x.contactId = null));
+    const gone = new Set(db.conversations.filter((x) => x.contactId === id).map((x) => x.id));
+    db.conversations = db.conversations.filter((x) => !gone.has(x.id));
+    db.messages = db.messages.filter((m) => !gone.has(m.conversationId));
     db.orders.forEach((x) => x.contactId === id && (x.contactId = null));
   }
   if (c === "companies") {
@@ -165,6 +170,7 @@ export function deleteRecord(db: DB, c: CollectionName, id: string) {
     db.activities = db.activities.filter((a) => a.ticketId !== id);
     db.tasks.forEach((x) => x.ticketId === id && (x.ticketId = null));
   }
+  if (c === "conversations") db.messages = db.messages.filter((m) => m.conversationId !== id);
   if (c === "forms") db.submissions = db.submissions.filter((s) => s.formId !== id);
   if (c === "emails") db.sends = db.sends.filter((s) => s.emailId !== id);
   if (c === "workflows") db.workflowRuns = db.workflowRuns.filter((r) => r.workflowId !== id);
@@ -174,7 +180,7 @@ export function deleteRecord(db: DB, c: CollectionName, id: string) {
 /* ---- Operations sent from the browser to the server ---- */
 
 /** Collections the browser may change directly. Users, submissions and sends are server-only. */
-export const WRITABLE: CollectionName[] = ["contacts", "companies", "deals", "tasks", "activities", "segments", "forms", "emails", "workflows", "prospects", "tickets", "products", "orders"];
+export const WRITABLE: CollectionName[] = ["contacts", "companies", "deals", "tasks", "activities", "segments", "forms", "emails", "workflows", "prospects", "tickets", "products", "orders", "conversations", "messages"];
 
 /** Activity types a person can log by hand. System events are written by the server. */
 const LOGGABLE = ["note", "call", "meeting"];
@@ -200,6 +206,14 @@ export function applyOp(db: DB, op: Op, meta: Meta, events: CrmEvent[] = []): An
       // A browser can never mark an email as sent: only the send endpoint does that.
       if (op.c === "emails") Object.assign(data, { status: "draft", sentAt: null });
       if (op.c === "prospects") throw new Error("Prospects are created by the prospecting agent.");
+      if (op.c === "conversations") throw new Error("Conversations start from an incoming or outgoing message.");
+      // From the browser, a message can only be an internal note. Real emails go through the reply endpoint.
+      if (op.c === "messages") {
+        const conversation = db.conversations.find((x) => x.id === data.conversationId);
+        if (!conversation) throw new Error("Conversation not found.");
+        Object.assign(data, { direction: "note", userId: ctx.userId });
+        conversation.updatedAt = nowIso();
+      }
       return createRecord(db, op.c, data);
     }
     if (op.t === "update") {
@@ -220,6 +234,82 @@ export function applyOp(db: DB, op: Op, meta: Meta, events: CrmEvent[] = []): An
     },
     events,
   );
+}
+
+/** Remove the quoted earlier messages an email client appends below a reply. */
+export function stripQuotedReply(text: string) {
+  const lines = text.replace(/\r/g, "").split("\n");
+  const cut = lines.findIndex((l) => /^On .+wrote:\s*$/.test(l.trim()) || /^-{2,}\s*Original Message/i.test(l.trim()) || /^From: .+/.test(l.trim()));
+  const kept = (cut > 0 ? lines.slice(0, cut) : lines).filter((l) => !l.trim().startsWith(">"));
+  return kept.join("\n").trim() || text.trim();
+}
+
+const bareSubject = (s: string) =>
+  s
+    .replace(/\[#[a-z0-9_]+\]/gi, "")
+    .replace(/^(\s*(re|fwd?|aw):\s*)+/i, "")
+    .trim()
+    .toLowerCase();
+
+/** An email (or form message) arrived: find its conversation or start one, creating the contact if they are new. */
+export function receiveMessage(db: DB, msg: { email: string; name?: string; subject: string; body: string; channel: Conversation["channel"] }) {
+  const email = msg.email.trim().toLowerCase();
+  let contact = db.contacts.find((c) => c.email.toLowerCase() === email) as Contact | undefined;
+  if (!contact) {
+    const [firstName = "", ...rest] = (msg.name ?? "").trim().split(/\s+/);
+    contact = createRecord(db, "contacts", {
+      firstName,
+      lastName: rest.join(" "),
+      email,
+      phone: "",
+      jobTitle: "",
+      city: "",
+      country: "",
+      companyId: null,
+      ownerId: null,
+      lifecycleStage: "lead",
+      leadStatus: "new",
+      source: msg.channel === "form" ? "form" : "website",
+      subscribed: false,
+    }) as Contact;
+  }
+  // Replies carry our "[#id]" tag in the subject; otherwise match an open thread with the same subject.
+  const tagged = msg.subject.match(/\[#([a-z0-9_]+)\]/i)?.[1];
+  let conversation =
+    db.conversations.find((c) => c.id === tagged && c.contactId === contact.id) ??
+    db.conversations.find((c) => c.contactId === contact.id && c.status === "open" && bareSubject(c.subject) === bareSubject(msg.subject));
+  if (!conversation) {
+    conversation = {
+      id: newId("conversations"),
+      contactId: contact.id,
+      subject: msg.subject.replace(/\[#[a-z0-9_]+\]/gi, "").trim() || "(no subject)",
+      channel: msg.channel,
+      status: "open",
+      assigneeId: contact.ownerId,
+      ticketId: null,
+      unread: true,
+      lastMessageAt: nowIso(),
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    };
+    db.conversations.unshift(conversation);
+  }
+  Object.assign(conversation, { status: "open", unread: true, lastMessageAt: nowIso(), updatedAt: nowIso() });
+  db.messages.push({ id: newId("messages"), conversationId: conversation.id, direction: "in", body: msg.body, userId: null, createdAt: nowIso() });
+  return conversation;
+}
+
+/** We sent an email in a conversation (or started one). */
+export function addOutgoing(db: DB, input: { conversationId?: string; contact: Contact; subject: string; body: string }) {
+  let conversation = db.conversations.find((c) => c.id === input.conversationId);
+  if (!conversation) {
+    conversation = { id: newId("conversations"), contactId: input.contact.id, subject: input.subject, channel: "email", status: "open", assigneeId: ctx.userId, ticketId: null, unread: false, lastMessageAt: nowIso(), createdAt: nowIso(), updatedAt: nowIso() };
+    db.conversations.unshift(conversation);
+  }
+  Object.assign(conversation, { unread: false, lastMessageAt: nowIso(), updatedAt: nowIso(), assigneeId: conversation.assigneeId ?? ctx.userId });
+  db.messages.push({ id: newId("messages"), conversationId: conversation.id, direction: "out", body: input.body, userId: ctx.userId, createdAt: nowIso() });
+  logActivity(db, { type: "email", subject: input.subject, body: input.body, contactId: input.contact.id, companyId: input.contact.companyId });
+  return conversation;
 }
 
 /** A public form was submitted: create or update the contact and record it. */
@@ -258,6 +348,8 @@ export function submitForm(db: DB, formId: string, values: Record<string, string
     companyId: contact.companyId,
     userId: null,
   });
+  // A form with a message field also lands in the shared inbox, so someone can answer it.
+  if (values.message) receiveMessage(db, { email, subject: `${form.name}: new message`, body: values.message, channel: "form" });
   emit({ type: "form_submitted", contactId: contact.id, value: formId });
   return contact;
 }

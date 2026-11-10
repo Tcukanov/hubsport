@@ -262,6 +262,32 @@ export interface Prospect {
   sentAt: string | null;
 }
 
+/** One thread in the shared inbox. */
+export interface Conversation {
+  id: string;
+  contactId: string | null;
+  subject: string;
+  channel: "email" | "form";
+  status: "open" | "closed";
+  assigneeId: string | null;
+  ticketId: string | null;
+  /** True while the latest incoming message has not been looked at. */
+  unread: boolean;
+  lastMessageAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  /** "in" from the contact, "out" from us, "note" is an internal comment the contact never sees. */
+  direction: "in" | "out" | "note";
+  body: string;
+  userId: string | null;
+  createdAt: string;
+}
+
 export interface DB {
   users: User[];
   contacts: Contact[];
@@ -280,6 +306,8 @@ export interface DB {
   tickets: Ticket[];
   products: Product[];
   orders: Order[];
+  conversations: Conversation[];
+  messages: Message[];
 }
 
 export type CollectionName = keyof DB;
@@ -302,4 +330,6 @@ export const COLLECTIONS: CollectionName[] = [
   "tickets",
   "products",
   "orders",
+  "conversations",
+  "messages",
 ];

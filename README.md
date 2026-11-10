@@ -7,6 +7,7 @@ A learning-project CRM built with Next.js, TypeScript and Tailwind.
 - **Home**: tasks due, pipeline numbers, recent activity
 - **Contacts, Companies, Deals**: searchable tables, record pages with editable properties, activity timeline and associations
 - **Deals board**: drag deals between pipeline stages
+- **Inbox**: shared conversations fed by an inbound-email webhook and form messages; reply by email, leave internal notes, assign, close, turn into a ticket
 - **Tickets** with a status board, **Products**, line items on deals, and **Orders**
 - **Calls** and **Meetings**: every logged call and meeting across all records
 - **Tasks**, **Segments** (filter-based lists), **Forms** (builder + public page at `/f/<id>`)

@@ -1,4 +1,4 @@
-import type { Activity, Company, Contact, DB, Deal, LineItem, Order, Product, Send, Submission, Task, Ticket, User } from "./types";
+import type { Activity, Company, Contact, Conversation, DB, Deal, LineItem, Message, Order, Product, Send, Submission, Task, Ticket, User } from "./types";
 import { ymd } from "./format";
 
 function rng(seed: number) {
@@ -367,6 +367,26 @@ export function buildSeed(me: User): DB {
     };
   });
 
+  const THREADS: [string, string, string[]][] = [
+    ["Question about the Team plan", "open", ["Hi, does the Team plan include automation, or is that an add-on?", "<Automation is included in Team. I can show you in a quick call if useful.", "That would be great. Is Thursday afternoon possible?"]],
+    ["Invoice for October", "open", ["Could you resend the October invoice with our new billing address?"]],
+    ["Trouble importing contacts", "open", ["The CSV import stops at row 200 with an error.", "<Thanks for the report. Can you send the file so we can reproduce it?", "!Looks like the date column. Asked them for the file.", "Attached. It is the export from our old system."]],
+    ["Thanks for the demo", "closed", ["Thanks for the walkthrough yesterday, very helpful.", "<Glad it was useful. I will follow up with pricing next week."]],
+    ["Adding more users", "open", ["We would like to add five more seats. How do we do that?"]],
+  ];
+  const conversations: Conversation[] = [];
+  const messages: Message[] = [];
+  THREADS.forEach(([subject, status, lines], i) => {
+    const c = customers[(i * 3 + 2) % customers.length];
+    const start = int(1, 9) + lines.length;
+    lines.forEach((line, k) => {
+      const direction = line.startsWith("<") ? "out" : line.startsWith("!") ? "note" : "in";
+      messages.push({ id: `m_${i + 1}_${k}`, conversationId: `cv_${i + 1}`, direction, body: line.replace(/^[<!]/, ""), userId: direction === "in" ? null : me.id, createdAt: ago(start - k - 0.5) });
+    });
+    const last = messages[messages.length - 1];
+    conversations.push({ id: `cv_${i + 1}`, contactId: c.id, subject, channel: "email", status: status as Conversation["status"], assigneeId: i % 2 ? null : me.id, ticketId: null, unread: last.direction === "in" && status === "open", lastMessageAt: last.createdAt, createdAt: ago(start), updatedAt: last.createdAt });
+  });
+
   const workflows = [
     {
       id: "w_1",
@@ -405,5 +425,5 @@ export function buildSeed(me: User): DB {
     },
   ];
 
-  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends, workflows, workflowRuns: [], prospects: [], tickets, products, orders };
+  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends, workflows, workflowRuns: [], prospects: [], tickets, products, orders, conversations, messages };
 }

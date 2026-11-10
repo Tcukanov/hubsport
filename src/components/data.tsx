@@ -14,6 +14,8 @@ interface Info {
   storage: "postgres" | "file";
   mail: { driver: "resend" | "smtp" | "outbox" | "none"; from: string };
   ai: boolean;
+  /** Webhook address for incoming email. Only sent to admins. */
+  inboundUrl: string | null;
 }
 
 interface DataCtx extends Info {

@@ -33,7 +33,7 @@ const Note = ({ m }: { m: { ok: boolean; text: string } | null }) =>
   );
 
 export default function SettingsPage() {
-  const { db, me, api, mail, ai, storage } = useData();
+  const { db, me, api, mail, ai, storage, inboundUrl } = useData();
   const admin = me.role === "admin";
   const people = db.users.filter((u) => !u.demo);
   const demo = db.users.filter((u) => u.demo);
@@ -169,6 +169,18 @@ export default function SettingsPage() {
               <Badge tone={mail.driver === "none" ? "rose" : mail.driver === "outbox" ? "amber" : "emerald"}>{mail.driver === "none" ? "Not set up" : mail.driver === "outbox" ? "Dev only" : "Live"}</Badge>
             </dd>
           </div>
+          {inboundUrl && (
+            <div className="space-y-2 px-4 py-3">
+              <dt className="text-stone-600">Incoming email (shared inbox)</dt>
+              <dd className="space-y-2">
+                <input aria-label="Inbound webhook address" readOnly className={`${inputCls} font-mono text-xs`} value={inboundUrl} onFocus={(e) => e.target.select()} />
+                <p className="text-xs text-stone-500">
+                  To receive replies in the Inbox, set this address as the inbound webhook at your mail provider. It accepts JSON or form posts with the fields from, subject and text. Keep it private: anyone who has it can post messages into the inbox. Optionally set INBOUND_ADDRESS to the
+                  mailbox your provider receives on, so replies are addressed there.
+                </p>
+              </dd>
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
             <dt className="text-stone-600">Prospecting agent</dt>
             <dd className="flex items-center gap-2 text-stone-900">

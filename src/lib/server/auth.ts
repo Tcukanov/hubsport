@@ -70,6 +70,11 @@ export function shortSig(text: string) {
   return hmac(`unsub:${text}`).slice(0, 24);
 }
 
+/** Secret part of the inbound-email webhook address, so only your mail provider can post to it. */
+export function inboundToken() {
+  return process.env.INBOUND_SECRET || hmac("inbound-webhook").replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
+}
+
 export async function startSession(userId: string) {
   (await cookies()).set(COOKIE, signToken({ uid: userId }, 30), {
     httpOnly: true,

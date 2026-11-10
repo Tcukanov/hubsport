@@ -1,9 +1,9 @@
 /* The whole JSON API lives in this one file, as a list of small handlers.
    Each handler is named after the request it answers, e.g. "POST auth/login". */
-import { applyOp, emailRecipients, logActivity, newMeta, randomSeed, submitForm, withMeta, type CrmEvent, type Meta, type Op } from "@/lib/mutations";
+import { addOutgoing, applyOp, emailRecipients, logActivity, newMeta, randomSeed, receiveMessage, stripQuotedReply, submitForm, withMeta, type CrmEvent, type Meta, type Op } from "@/lib/mutations";
 import { buildSeed } from "@/lib/seed";
 import { HttpError, colorFor, handle, isEmail, json, originOf, publicUser, readBody, requireAdmin, requireUser, str, syncUsers } from "@/lib/server/api";
-import { checkPassword, currentUser, endSession, hashPassword, readToken, shortSig, signToken, startSession } from "@/lib/server/auth";
+import { checkPassword, currentUser, endSession, hashPassword, inboundToken, readToken, shortSig, signToken, startSession } from "@/lib/server/auth";
 import { mailDriver, mailFrom, marketingEmail, plainEmailHtml, sendMail, type MailResult } from "@/lib/server/mailer";
 import { aiConfigured, draftOutreach } from "@/lib/server/prospecting";
 import { getStore, type AppUser } from "@/lib/server/store";
@@ -27,6 +27,13 @@ function normalize(db: DB) {
     db.products ??= demo.products;
     db.tickets ??= known(demo.tickets);
     db.orders ??= known(demo.orders);
+  }
+  if (!db.conversations || !db.messages) {
+    const demo = buildSeed(db.users[0]);
+    const contactIds = new Set(db.contacts.map((c) => c.id));
+    db.conversations = demo.conversations.filter((c) => c.contactId && contactIds.has(c.contactId));
+    const kept = new Set(db.conversations.map((c) => c.id));
+    db.messages = demo.messages.filter((m) => kept.has(m.conversationId));
   }
   return db;
 }
@@ -83,6 +90,45 @@ function checkNewAccount(name: string, password: string) {
   if (password.length < 8) throw new HttpError(400, "The password needs at least 8 characters.");
 }
 
+/** Read an incoming email from a provider webhook, whatever field names it uses. */
+async function parseInbound(req: Request) {
+  let raw: Record<string, unknown> = {};
+  if ((req.headers.get("content-type") ?? "").includes("json")) raw = await readBody(req);
+  else {
+    try {
+      raw = Object.fromEntries((await req.formData()).entries());
+    } catch {
+      raw = {};
+    }
+  }
+  const data = (raw.data && typeof raw.data === "object" ? raw.data : raw) as Record<string, unknown>;
+  const first = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = data[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return "";
+  };
+  let from = first("from", "From", "sender", "from_email");
+  let name = first("from_name", "FromName");
+  const fromObj = (data.from ?? data.From ?? data.FromFull) as { email?: string; address?: string; Email?: string; name?: string; Name?: string } | undefined;
+  if (!from && fromObj && typeof fromObj === "object") {
+    from = fromObj.email ?? fromObj.address ?? fromObj.Email ?? "";
+    name ||= fromObj.name ?? fromObj.Name ?? "";
+  }
+  // "Jane Doe <jane@example.com>" -> name and address
+  const angled = from.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/);
+  if (angled) {
+    name ||= angled[1].trim();
+    from = angled[2];
+  }
+  const html = first("html", "HtmlBody", "body-html", "stripped-html");
+  const text = first("text", "TextBody", "stripped-text", "body-plain", "plain", "body") || html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const email = from.trim().toLowerCase();
+  if (!isEmail(email) || !text.trim()) return null;
+  return { email, name: name.slice(0, 80), subject: (first("subject", "Subject") || "(no subject)").slice(0, 200), body: stripQuotedReply(text).slice(0, 10_000) };
+}
+
 type Handler = (req: Request, id: string) => Promise<Response>;
 
 const routes: Record<string, Handler> = {
@@ -127,10 +173,18 @@ const routes: Record<string, Handler> = {
 
   /* ---------- CRM data ---------- */
 
-  "GET workspace": async () => {
+  "GET workspace": async (req) => {
     const user = await requireUser();
     const store = getStore();
-    return json({ db: await loadDB(), meId: user.id, storage: store.kind, mail: { driver: mailDriver(), from: mailFrom() }, ai: aiConfigured() });
+    return json({
+      db: await loadDB(),
+      meId: user.id,
+      storage: store.kind,
+      mail: { driver: mailDriver(), from: mailFrom() },
+      ai: aiConfigured(),
+      // Only admins see the webhook address, because knowing it lets you post messages into the inbox.
+      inboundUrl: user.role === "admin" ? `${originOf(req)}/api/inbound/${inboundToken()}` : null,
+    });
   },
 
   // Every edit made in the browser arrives here as one operation.
@@ -223,6 +277,68 @@ const routes: Record<string, Handler> = {
     const ticketId = db.tickets.some((t) => t.id === body.ticketId) ? (body.ticketId as string) : null;
     await getStore().updateDB((d) => withMeta(newMeta(user.id), () => logActivity(d, { type: "email", subject, body: text, contactId: contact.id, companyId: contact.companyId, dealId, ticketId })));
     return json({ ok: true });
+  },
+
+  /* ---------- Shared inbox ---------- */
+
+  // Your mail provider calls this when an email arrives (an "inbound webhook").
+  // Providers name the fields differently, so several common spellings are accepted.
+  "POST inbound": async (req, token) => {
+    if (token !== inboundToken()) throw new HttpError(404, "Not found.");
+    const mail = await parseInbound(req);
+    if (!mail) throw new HttpError(400, "Expected the fields from, subject and text.");
+    const meta = newMeta(null);
+    await change(meta, (db, events) => withMeta(meta, () => receiveMessage(db, { ...mail, channel: "email" }), events));
+    return json({ ok: true });
+  },
+
+  // Lets a signed-in user drop a pretend incoming email into the inbox, to try it without a mail provider.
+  "POST inbox/simulate": async (req) => {
+    await requireUser();
+    const body = await readBody(req);
+    const email = str(body.email, 200).toLowerCase();
+    const text = str(body.body, 5000);
+    if (!isEmail(email) || !text) throw new HttpError(400, "Enter a sender address and a message.");
+    const meta = newMeta(null);
+    const out = await change(meta, (db, events) => withMeta(meta, () => receiveMessage(db, { email, name: str(body.name, 80), subject: str(body.subject, 200) || "(no subject)", body: text, channel: "email" }), events));
+    return json({ ok: true, id: out.result.id });
+  },
+
+  // Reply to a conversation by email.
+  "POST inbox/reply": async (req, id) => {
+    const user = await requireUser();
+    if (mailDriver() === "none") throw new HttpError(400, "Email sending is not set up yet. Add RESEND_API_KEY or SMTP settings to the environment.");
+    const text = str((await readBody(req)).body, 10_000);
+    if (!text) throw new HttpError(400, "Write a reply first.");
+    const db = await loadDB();
+    const conversation = db.conversations.find((c) => c.id === id);
+    const contact = db.contacts.find((c) => c.id === conversation?.contactId);
+    if (!conversation || !contact || !isEmail(contact.email)) throw new HttpError(404, "This conversation has no contact to reply to.");
+    // The "[#id]" tag is how the reply to this reply finds its way back into the same thread.
+    const subject = `Re: ${conversation.subject} [#${conversation.id}]`;
+    const r = await sendMail({ to: contact.email, subject, html: plainEmailHtml(text), text, fromName: user.name, replyTo: process.env.INBOUND_ADDRESS || user.email });
+    if (!r.ok) throw new HttpError(502, `The reply could not be sent: ${r.error}`);
+    await getStore().updateDB((d) => withMeta(newMeta(user.id), () => addOutgoing(normalize(d), { conversationId: id, contact, subject: `Re: ${conversation.subject}`, body: text })));
+    return json({ ok: true });
+  },
+
+  // Start a new conversation by emailing a contact.
+  "POST inbox/new": async (req) => {
+    const user = await requireUser();
+    if (mailDriver() === "none") throw new HttpError(400, "Email sending is not set up yet. Add RESEND_API_KEY or SMTP settings to the environment.");
+    const body = await readBody(req);
+    const subject = str(body.subject, 200);
+    const text = str(body.body, 10_000);
+    if (!subject || !text) throw new HttpError(400, "Write a subject and a message first.");
+    const db = await loadDB();
+    const contact = db.contacts.find((c) => c.id === body.contactId);
+    if (!contact || !isEmail(contact.email)) throw new HttpError(400, "This contact has no valid email address.");
+    const meta = newMeta(user.id);
+    const convId = `cv_${meta.seed}0`; // the id addOutgoing will generate, needed for the subject tag before sending
+    const r = await sendMail({ to: contact.email, subject: `${subject} [#${convId}]`, html: plainEmailHtml(text), text, fromName: user.name, replyTo: process.env.INBOUND_ADDRESS || user.email });
+    if (!r.ok) throw new HttpError(502, `The email could not be sent: ${r.error}`);
+    const conv = await getStore().updateDB((d) => withMeta(meta, () => addOutgoing(normalize(d), { contact, subject, body: text })));
+    return json({ ok: true, id: conv.id });
   },
 
   /* ---------- Public forms (no sign-in) ---------- */
