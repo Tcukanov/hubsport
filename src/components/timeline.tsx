@@ -26,6 +26,10 @@ function target(a: Activity, db: DB) {
     const c = db.contacts.find((x) => x.id === a.contactId);
     if (c) return { href: `/contacts/${c.id}`, label: displayName("contacts", c) };
   }
+  if (a.ticketId) {
+    const t = db.tickets.find((x) => x.id === a.ticketId);
+    if (t) return { href: `/tickets/${t.id}`, label: t.name };
+  }
   if (a.dealId) {
     const d = db.deals.find((x) => x.id === a.dealId);
     if (d) return { href: `/deals/${d.id}`, label: d.name };

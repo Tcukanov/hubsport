@@ -4,12 +4,13 @@ import { ArrowLeft, CalendarDays, CheckSquare, Mail, Phone, Plus, StickyNote, Tr
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { CALL_OUTCOMES, DEAL_STAGES, PRIORITIES, TASK_TYPES } from "@/lib/config";
+import { CALL_OUTCOMES, DEAL_STAGES, ORDER_STATUS, PRIORITIES, TASK_TYPES, TICKET_STATUS, optionLabel } from "@/lib/config";
 import { addDays, fmtDate, money, todayYmd } from "@/lib/format";
 import { OBJECTS, displayName, type ObjectKind } from "@/lib/objects";
 import type { AnyRec, Task } from "@/lib/types";
 import { useData } from "./data";
-import { PropField } from "./props";
+import { LineItems, lineTotal } from "./line-items";
+import { PropField, PropValue } from "./props";
 import { ActivityItem } from "./timeline";
 import { Avatar, Button, Card, Empty, Field, Modal, Tabs, cx, inputCls } from "./ui";
 
@@ -30,7 +31,7 @@ function ComposerModal({
   onClose,
 }: {
   type: Composer;
-  links: { contactId: string | null; companyId: string | null; dealId: string | null };
+  links: { contactId: string | null; companyId: string | null; dealId: string | null; ticketId: string | null };
   /** Contacts an email can go to from this record. */
   recipients: { id: string; label: string }[];
   onClose: () => void;
@@ -53,7 +54,7 @@ function ComposerModal({
       setBusy(true);
       setError("");
       try {
-        await api("send-email", { contactId: to, subject: subject.trim(), body: body.trim(), dealId: links.dealId });
+        await api("send-email", { contactId: to, subject: subject.trim(), body: body.trim(), dealId: links.dealId, ticketId: links.ticketId });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Sending failed.");
         setBusy(false);
@@ -265,19 +266,36 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
     );
 
   const name = displayName(kind, rec);
+  const none = { contactId: null, companyId: null, dealId: null, ticketId: null };
   const links =
     kind === "contacts"
-      ? { contactId: id, companyId: rec.companyId ?? null, dealId: null }
+      ? { ...none, contactId: id, companyId: rec.companyId ?? null }
       : kind === "companies"
-        ? { contactId: null, companyId: id, dealId: null }
-        : { contactId: null, companyId: rec.companyId ?? null, dealId: id };
+        ? { ...none, companyId: id }
+        : kind === "deals"
+          ? { ...none, companyId: rec.companyId ?? null, dealId: id }
+          : { ...none, contactId: rec.contactId ?? null, companyId: rec.companyId ?? null, ticketId: kind === "tickets" ? id : null };
 
-  const mine = (x: { contactId: string | null; companyId: string | null; dealId: string | null }) =>
-    kind === "contacts" ? x.contactId === id : kind === "deals" ? x.dealId === id : x.companyId === id || (!!x.contactId && contactIdsOfCompany.has(x.contactId));
+  const mine = (x: { contactId: string | null; companyId: string | null; dealId: string | null; ticketId?: string | null }) =>
+    kind === "contacts"
+      ? x.contactId === id
+      : kind === "deals"
+        ? x.dealId === id
+        : kind === "tickets"
+          ? x.ticketId === id
+          : kind === "companies"
+            ? x.companyId === id || (!!x.contactId && contactIdsOfCompany.has(x.contactId))
+            : false;
 
-  const recipients = (kind === "contacts" ? [rec] : kind === "companies" ? db.contacts.filter((c) => c.companyId === id) : db.contacts.filter((c) => rec.contactIds.includes(c.id)))
-    .filter((c) => c.email)
-    .map((c) => ({ id: c.id as string, label: `${displayName("contacts", c)} <${c.email}>` }));
+  const reachable =
+    kind === "contacts"
+      ? [rec]
+      : kind === "companies"
+        ? db.contacts.filter((c) => c.companyId === id)
+        : kind === "deals"
+          ? db.contacts.filter((c) => rec.contactIds.includes(c.id))
+          : db.contacts.filter((c) => c.id === rec.contactId);
+  const recipients = reachable.filter((c) => c.email).map((c) => ({ id: c.id as string, label: `${displayName("contacts", c)} <${c.email}>` }));
 
   const activities = db.activities.filter(mine).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const tasks = db.tasks.filter(mine).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
@@ -285,6 +303,11 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
   const count = (t: string) => activities.filter((a) => a.type === t).length;
 
   const dealItem = (d: AnyRec) => ({ id: d.id, href: `/deals/${d.id}`, label: d.name, sub: `${money(d.amount)} · ${DEAL_STAGES.find((s) => s.value === d.stage)?.label}` });
+  const ticketItem = (t: AnyRec) => ({ id: t.id, href: `/tickets/${t.id}`, label: t.name, sub: optionLabel(TICKET_STATUS, t.status) });
+  const orderItem = (o: AnyRec) => ({ id: o.id, href: `/orders/${o.id}`, label: o.name, sub: `${money(o.amount)} · ${optionLabel(ORDER_STATUS, o.status)}` });
+  const linkedContact = db.contacts.find((c) => c.id === rec.contactId);
+  const stageDef = cfg.props.find((p) => p.key === cfg.stageKey);
+  const usesProduct = <T extends { lineItems?: { productId: string | null }[] }>(list: T[]) => list.filter((x) => x.lineItems?.some((li) => li.productId === id));
   const contactItem = (c: AnyRec) => ({ id: c.id, href: `/contacts/${c.id}`, label: displayName("contacts", c), sub: c.jobTitle || c.email });
   const company = db.companies.find((c) => c.id === rec.companyId);
   const companyItems = company ? [{ id: company.id, href: `/companies/${company.id}`, label: company.name, sub: company.domain }] : [];
@@ -296,16 +319,16 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
         {cfg.plural}
       </Link>
 
-      {kind === "deals" && (
+      {stageDef?.options && (
         <div className="mb-5 flex overflow-x-auto rounded-xl border border-stone-200 bg-white p-1.5">
-          {DEAL_STAGES.map((s) => (
+          {stageDef.options.map((s) => (
             <button
               key={s.value}
               type="button"
-              onClick={() => update("deals", id, { stage: s.value })}
+              onClick={() => update(kind, id, { [stageDef.key]: s.value })}
               className={cx(
                 "flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium",
-                rec.stage === s.value ? (s.value === "lost" ? "bg-rose-600 text-white" : s.value === "won" ? "bg-emerald-600 text-white" : "bg-teal-600 text-white") : "text-stone-600 hover:bg-stone-100",
+                rec[stageDef.key] === s.value ? (s.tone === "rose" ? "bg-rose-600 text-white" : s.tone === "emerald" ? "bg-emerald-600 text-white" : "bg-stone-900 text-white") : "text-stone-600 hover:bg-stone-100",
               )}
             >
               {s.label}
@@ -318,15 +341,23 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
         <div className="space-y-5">
           <Card>
             <div className="flex items-center gap-3 px-4 pt-4">
-              <Avatar name={name} color={kind === "contacts" ? "#0f766e" : kind === "companies" ? "#0d9488" : "#d97706"} size={44} />
+              <Avatar name={name} color={{ contacts: "#0f766e", companies: "#0d9488", deals: "#d97706", tickets: "#2563eb", products: "#57534e", orders: "#059669" }[kind]} size={44} />
               <div className="min-w-0">
                 <h1 className="truncate text-lg font-semibold text-stone-900">{name}</h1>
                 <p className="truncate text-sm text-stone-500">
-                  {kind === "contacts" ? [rec.jobTitle, company?.name].filter(Boolean).join(" at ") || rec.email : kind === "companies" ? rec.domain : money(rec.amount)}
+                  {kind === "contacts"
+                    ? [rec.jobTitle, company?.name].filter(Boolean).join(" at ") || rec.email
+                    : kind === "companies"
+                      ? rec.domain
+                      : kind === "tickets"
+                        ? `${optionLabel(TICKET_STATUS, rec.status)} · ${optionLabel(PRIORITIES, rec.priority)} priority`
+                        : kind === "products"
+                          ? `${money(rec.price)} · ${rec.sku || "no SKU"}`
+                          : money(rec.amount)}
                 </p>
               </div>
             </div>
-            <div className="flex justify-between gap-1 px-3 py-4">
+            <div className={cx("flex justify-between gap-1 px-3 py-4", !cfg.timeline && "hidden")}>
               {ACTIONS.map((a) => (
                 <button key={a.type} type="button" onClick={() => setComposer(a.type)} className="flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs text-stone-600 hover:bg-stone-100">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-700">
@@ -343,7 +374,13 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
               {cfg.props.map((def) => (
                 <div key={def.key}>
                   <span className="mb-1 block text-xs font-medium text-stone-500">{def.label}</span>
-                  {def.readOnly ? <p className="text-sm text-stone-800">{fmtDate(rec[def.key])}</p> : <PropField def={def} value={rec[def.key]} db={db} onChange={(v) => update(kind, id, { [def.key]: v })} />}
+                  {def.readOnly ? (
+                    <p className="text-sm text-stone-800">
+                      <PropValue def={def} rec={rec} db={db} />
+                    </p>
+                  ) : (
+                    <PropField def={def} value={rec[def.key]} db={db} onChange={(v) => update(kind, id, { [def.key]: v })} />
+                  )}
                 </div>
               ))}
             </div>
@@ -363,7 +400,30 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
           </Button>
         </div>
 
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-5">
+          {kind === "deals" && (
+            <LineItems
+              items={rec.lineItems}
+              onChange={(lineItems) => update("deals", id, { lineItems })}
+              footer={
+                lineTotal(rec.lineItems) > 0 &&
+                lineTotal(rec.lineItems) !== rec.amount && (
+                  <button type="button" className="text-sm font-medium text-teal-700 hover:underline" onClick={() => update("deals", id, { amount: lineTotal(rec.lineItems) })}>
+                    Use total as deal amount
+                  </button>
+                )
+              }
+            />
+          )}
+          {kind === "orders" && <LineItems items={rec.lineItems} onChange={(lineItems) => update("orders", id, { lineItems, amount: lineTotal(lineItems) })} />}
+          {kind === "products" && (
+            <>
+              <AssocCard title="Deals with this product" items={usesProduct(db.deals).map(dealItem)} />
+              <AssocCard title="Orders with this product" items={usesProduct(db.orders).map(orderItem)} />
+            </>
+          )}
+          {cfg.timeline && (
+            <div>
           <Tabs
             value={tab}
             onChange={setTab}
@@ -401,6 +461,8 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
               <Empty title="Nothing here yet" hint="Log a note, call, email or meeting and it will show up on this timeline." />
             )}
           </Card>
+            </div>
+          )}
         </div>
 
         <div className="space-y-5">
@@ -414,6 +476,8 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
                 onAdd={(dealId) => update("deals", dealId, { contactIds: [...db.deals.find((d) => d.id === dealId)!.contactIds, id] })}
                 onRemove={(dealId) => update("deals", dealId, { contactIds: db.deals.find((d) => d.id === dealId)!.contactIds.filter((x) => x !== id) })}
               />
+              <AssocCard title="Tickets" items={db.tickets.filter((t) => t.contactId === id).map(ticketItem)} />
+              <AssocCard title="Orders" items={db.orders.filter((o) => o.contactId === id).map(orderItem)} />
             </>
           )}
           {kind === "companies" && (
@@ -432,7 +496,28 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
                 onAdd={(did) => update("deals", did, { companyId: id })}
                 onRemove={(did) => update("deals", did, { companyId: null })}
               />
+              <AssocCard title="Tickets" items={db.tickets.filter((t) => t.companyId === id).map(ticketItem)} />
             </>
+          )}
+          {(kind === "tickets" || kind === "orders") && (
+            <>
+              <AssocCard title="Contact" items={linkedContact ? [contactItem(linkedContact)] : []} />
+              <AssocCard title="Company" items={companyItems} />
+            </>
+          )}
+          {kind === "products" && (
+            <Card title="Usage">
+              <dl className="space-y-2 p-4 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-stone-600">On deals</dt>
+                  <dd className="font-medium tabular-nums text-stone-900">{usesProduct(db.deals).length}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-stone-600">On orders</dt>
+                  <dd className="font-medium tabular-nums text-stone-900">{usesProduct(db.orders).length}</dd>
+                </div>
+              </dl>
+            </Card>
           )}
           {kind === "deals" && (
             <>

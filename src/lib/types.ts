@@ -55,8 +55,58 @@ export interface Deal {
   ownerId: string | null;
   companyId: string | null;
   contactIds: string[];
+  lineItems?: LineItem[];
   priority: string;
   dealType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One product row on a deal or an order. Name and price are copied so later product edits do not rewrite history. */
+export interface LineItem {
+  productId: string | null;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Ticket {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  priority: string;
+  source: string;
+  contactId: string | null;
+  companyId: string | null;
+  ownerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  billing: string;
+  description: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Order {
+  id: string;
+  name: string;
+  status: string;
+  amount: number;
+  orderDate: string;
+  lineItems: LineItem[];
+  contactId: string | null;
+  companyId: string | null;
+  ownerId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,6 +122,7 @@ export interface Task {
   contactId: string | null;
   companyId: string | null;
   dealId: string | null;
+  ticketId?: string | null;
   notes: string;
   createdAt: string;
   completedAt: string | null;
@@ -85,6 +136,7 @@ export interface Activity {
   contactId: string | null;
   companyId: string | null;
   dealId: string | null;
+  ticketId?: string | null;
   userId: string | null;
   createdAt: string;
 }
@@ -225,6 +277,9 @@ export interface DB {
   workflows: Workflow[];
   workflowRuns: WorkflowRun[];
   prospects: Prospect[];
+  tickets: Ticket[];
+  products: Product[];
+  orders: Order[];
 }
 
 export type CollectionName = keyof DB;
@@ -244,4 +299,7 @@ export const COLLECTIONS: CollectionName[] = [
   "workflows",
   "workflowRuns",
   "prospects",
+  "tickets",
+  "products",
+  "orders",
 ];

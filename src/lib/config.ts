@@ -76,6 +76,34 @@ export const TASK_TYPES: Option[] = [
 
 export const CALL_OUTCOMES = ["Connected", "Left voicemail", "No answer", "Wrong number"];
 
+export const TICKET_STATUS: Option[] = [
+  { value: "new", label: "New", tone: "sky" },
+  { value: "waiting_contact", label: "Waiting on contact", tone: "amber" },
+  { value: "waiting_us", label: "Waiting on us", tone: "orange" },
+  { value: "closed", label: "Closed", tone: "emerald" },
+];
+
+export const TICKET_SOURCES: Option[] = [
+  { value: "email", label: "Email" },
+  { value: "chat", label: "Chat" },
+  { value: "phone", label: "Phone" },
+  { value: "form", label: "Form" },
+];
+
+export const ORDER_STATUS: Option[] = [
+  { value: "pending", label: "Pending", tone: "amber" },
+  { value: "paid", label: "Paid", tone: "sky" },
+  { value: "fulfilled", label: "Fulfilled", tone: "emerald" },
+  { value: "cancelled", label: "Cancelled", tone: "stone" },
+  { value: "refunded", label: "Refunded", tone: "rose" },
+];
+
+export const BILLING: Option[] = [
+  { value: "one_time", label: "One-time" },
+  { value: "monthly", label: "Monthly" },
+  { value: "annual", label: "Annual" },
+];
+
 export const TONES: Record<string, string> = {
   stone: "bg-stone-100 text-stone-700",
   sky: "bg-sky-100 text-sky-800",

@@ -1,4 +1,4 @@
-import { DEAL_STAGES, LEAD_STATUS, LIFECYCLE, type Option } from "./config";
+import { DEAL_STAGES, LEAD_STATUS, LIFECYCLE, PRIORITIES, type Option } from "./config";
 import type { DB, Workflow, WorkflowAction } from "./types";
 
 export const TRIGGERS: { value: string; label: string; valueLabel?: string }[] = [
@@ -7,12 +7,14 @@ export const TRIGGERS: { value: string; label: string; valueLabel?: string }[] =
   { value: "lifecycle_changed", label: "A contact's lifecycle stage changes", valueLabel: "To which stage" },
   { value: "deal_created", label: "A deal is created", valueLabel: "In which stage" },
   { value: "deal_stage_changed", label: "A deal moves to a stage", valueLabel: "Which stage" },
+  { value: "ticket_created", label: "A ticket is created", valueLabel: "With which priority" },
 ];
 
 export function triggerValues(type: string, db: DB): Option[] {
   if (type === "form_submitted") return db.forms.map((f) => ({ value: f.id, label: f.name }));
   if (type === "lifecycle_changed") return LIFECYCLE;
   if (type === "deal_created" || type === "deal_stage_changed") return DEAL_STAGES;
+  if (type === "ticket_created") return PRIORITIES;
   return [];
 }
 

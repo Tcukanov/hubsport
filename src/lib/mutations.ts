@@ -3,7 +3,7 @@
    The browser and the server both run the same operation ("op") with the same
    metadata (id seed, timestamp, acting user), so they end up with identical
    results: the browser applies it instantly, the server applies it for real. */
-import { DEAL_STAGES, LIFECYCLE, optionLabel } from "./config";
+import { DEAL_STAGES, LIFECYCLE, TICKET_STATUS, optionLabel } from "./config";
 import { segmentContacts } from "./segments";
 import type { Activity, AnyRec, CollectionName, Contact, DB, Patch } from "./types";
 
@@ -22,6 +22,9 @@ const PREFIX: Record<CollectionName, string> = {
   workflows: "w",
   workflowRuns: "wr",
   prospects: "p",
+  tickets: "tk",
+  products: "pr",
+  orders: "o",
 };
 
 export interface Meta {
@@ -40,7 +43,7 @@ export function newMeta(userId: string | null): Meta {
 
 /** Something that happened which an automation workflow may react to. */
 export interface CrmEvent {
-  type: "contact_created" | "form_submitted" | "lifecycle_changed" | "deal_created" | "deal_stage_changed";
+  type: "contact_created" | "form_submitted" | "lifecycle_changed" | "deal_created" | "deal_stage_changed" | "ticket_created";
   contactId?: string | null;
   dealId?: string | null;
   value?: string;
@@ -85,6 +88,10 @@ export function createRecord(db: DB, c: CollectionName, data: Patch): AnyRec {
     logActivity(db, { type: "created", body: `Deal created in ${optionLabel(DEAL_STAGES, rec.stage)}`, dealId: rec.id, companyId: rec.companyId ?? null });
     emit({ type: "deal_created", dealId: rec.id, value: rec.stage });
   }
+  if (c === "tickets") {
+    logActivity(db, { type: "created", body: "Ticket created", ticketId: rec.id, contactId: rec.contactId ?? null, companyId: rec.companyId ?? null });
+    emit({ type: "ticket_created", contactId: rec.contactId ?? null, value: rec.priority });
+  }
   return rec;
 }
 
@@ -111,10 +118,20 @@ export function updateRecord(db: DB, c: CollectionName, id: string, patch: Patch
     });
     emit({ type: "lifecycle_changed", contactId: id, value: patch.lifecycleStage });
   }
+  if (c === "tickets" && patch.status && patch.status !== before.status) {
+    rec.closedAt = patch.status === "closed" ? nowIso() : null;
+    logActivity(db, {
+      type: "stage_change",
+      body: `Ticket status changed from ${optionLabel(TICKET_STATUS, before.status)} to ${optionLabel(TICKET_STATUS, patch.status)}`,
+      ticketId: id,
+      contactId: rec.contactId ?? null,
+      companyId: rec.companyId ?? null,
+    });
+  }
   if (c === "tasks" && patch.status && patch.status !== before.status) {
     rec.completedAt = patch.status === "done" ? nowIso() : null;
     if (patch.status === "done")
-      logActivity(db, { type: "task", body: `Task completed: ${rec.title}`, contactId: rec.contactId, companyId: rec.companyId, dealId: rec.dealId });
+      logActivity(db, { type: "task", body: `Task completed: ${rec.title}`, contactId: rec.contactId, companyId: rec.companyId, dealId: rec.dealId, ticketId: rec.ticketId ?? null });
   }
   return rec;
 }
@@ -128,17 +145,25 @@ export function deleteRecord(db: DB, c: CollectionName, id: string) {
     db.sends = db.sends.filter((s) => s.contactId !== id);
     db.prospects = db.prospects.filter((p) => p.contactId !== id);
     db.submissions.forEach((s) => s.contactId === id && (s.contactId = null));
+    db.tickets.forEach((x) => x.contactId === id && (x.contactId = null));
+    db.orders.forEach((x) => x.contactId === id && (x.contactId = null));
   }
   if (c === "companies") {
     db.contacts.forEach((x) => x.companyId === id && (x.companyId = null));
     db.deals.forEach((x) => x.companyId === id && (x.companyId = null));
     db.tasks.forEach((x) => x.companyId === id && (x.companyId = null));
+    db.tickets.forEach((x) => x.companyId === id && (x.companyId = null));
+    db.orders.forEach((x) => x.companyId === id && (x.companyId = null));
     db.activities = db.activities.filter((a) => !(a.companyId === id && !a.contactId && !a.dealId));
     db.activities.forEach((a) => a.companyId === id && (a.companyId = null));
   }
   if (c === "deals") {
     db.activities = db.activities.filter((a) => a.dealId !== id);
     db.tasks.forEach((x) => x.dealId === id && (x.dealId = null));
+  }
+  if (c === "tickets") {
+    db.activities = db.activities.filter((a) => a.ticketId !== id);
+    db.tasks.forEach((x) => x.ticketId === id && (x.ticketId = null));
   }
   if (c === "forms") db.submissions = db.submissions.filter((s) => s.formId !== id);
   if (c === "emails") db.sends = db.sends.filter((s) => s.emailId !== id);
@@ -149,7 +174,7 @@ export function deleteRecord(db: DB, c: CollectionName, id: string) {
 /* ---- Operations sent from the browser to the server ---- */
 
 /** Collections the browser may change directly. Users, submissions and sends are server-only. */
-export const WRITABLE: CollectionName[] = ["contacts", "companies", "deals", "tasks", "activities", "segments", "forms", "emails", "workflows", "prospects"];
+export const WRITABLE: CollectionName[] = ["contacts", "companies", "deals", "tasks", "activities", "segments", "forms", "emails", "workflows", "prospects", "tickets", "products", "orders"];
 
 /** Activity types a person can log by hand. System events are written by the server. */
 const LOGGABLE = ["note", "call", "meeting"];
@@ -166,8 +191,8 @@ export function applyOp(db: DB, op: Op, meta: Meta, events: CrmEvent[] = []): An
     () => {
     if (op.t === "log") {
       if (!LOGGABLE.includes(op.activity.type)) throw new Error("This activity type cannot be logged by hand.");
-      const { type, subject, body, contactId = null, companyId = null, dealId = null } = op.activity;
-      return logActivity(db, { type, subject, body, contactId, companyId, dealId });
+      const { type, subject, body, contactId = null, companyId = null, dealId = null, ticketId = null } = op.activity;
+      return logActivity(db, { type, subject, body, contactId, companyId, dealId, ticketId });
     }
     if (!WRITABLE.includes(op.c)) throw new Error(`"${op.c}" cannot be changed directly.`);
     if (op.t === "create") {

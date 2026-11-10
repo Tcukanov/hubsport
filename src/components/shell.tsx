@@ -4,16 +4,21 @@ import {
   Activity,
   BarChart3,
   Building2,
+  CalendarDays,
   CheckSquare,
   ClipboardList,
   Filter,
   Handshake,
   Home,
+  LifeBuoy,
   LogOut,
   Mail,
   Menu,
+  Package,
+  Phone,
   Search,
   Settings,
+  ShoppingCart,
   Target,
   Users,
   Workflow,
@@ -34,8 +39,11 @@ const NAV = [
       { href: "/contacts", label: "Contacts", icon: Users },
       { href: "/companies", label: "Companies", icon: Building2 },
       { href: "/deals", label: "Deals", icon: Handshake },
+      { href: "/tickets", label: "Tickets", icon: LifeBuoy },
       { href: "/tasks", label: "Tasks", icon: CheckSquare },
       { href: "/segments", label: "Segments", icon: Filter },
+      { href: "/products", label: "Products", icon: Package },
+      { href: "/orders", label: "Orders", icon: ShoppingCart },
     ],
   },
   {
@@ -49,6 +57,8 @@ const NAV = [
     label: "Sales",
     items: [
       { href: "/prospecting", label: "Prospecting agent", icon: Target },
+      { href: "/calls", label: "Calls", icon: Phone },
+      { href: "/meetings", label: "Meetings", icon: CalendarDays },
       { href: "/activity", label: "Activity feed", icon: Activity },
     ],
   },
@@ -75,6 +85,9 @@ function GlobalSearch() {
       ...db.contacts.filter((c) => hit(displayName("contacts", c)) || hit(c.email)).map((c) => ({ href: `/contacts/${c.id}`, label: displayName("contacts", c), sub: c.email, kind: "Contact" })),
       ...db.companies.filter((c) => hit(c.name) || hit(c.domain)).map((c) => ({ href: `/companies/${c.id}`, label: c.name, sub: c.domain, kind: "Company" })),
       ...db.deals.filter((d) => hit(d.name)).map((d) => ({ href: `/deals/${d.id}`, label: d.name, sub: "", kind: "Deal" })),
+      ...db.tickets.filter((t) => hit(t.name)).map((t) => ({ href: `/tickets/${t.id}`, label: t.name, sub: "", kind: "Ticket" })),
+      ...db.products.filter((p) => hit(p.name) || hit(p.sku)).map((p) => ({ href: `/products/${p.id}`, label: p.name, sub: p.sku, kind: "Product" })),
+      ...db.orders.filter((o) => hit(o.name)).map((o) => ({ href: `/orders/${o.id}`, label: o.name, sub: "", kind: "Order" })),
     ].slice(0, 8);
   }, [q, db]);
 
@@ -90,7 +103,7 @@ function GlobalSearch() {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder="Search contacts, companies, deals"
+        placeholder="Search contacts, companies, deals, tickets"
         className="w-full rounded-full border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-teal-500 focus:bg-white"
       />
       {open && q.trim() && (
@@ -167,7 +180,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       key={item.href}
       href={item.href}
       onClick={() => setNavOpen(false)}
-      className={cx("flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium", isActive(item.href) ? "bg-white/10 text-white" : "text-stone-300 hover:bg-white/5 hover:text-white")}
+      className={cx("flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium", isActive(item.href) ? "bg-white/10 text-white" : "text-stone-300 hover:bg-white/5 hover:text-white")}
     >
       <item.icon size={17} />
       {item.label}
@@ -175,7 +188,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   );
 
   const nav = (
-    <nav className="flex h-full flex-col gap-4 overflow-y-auto bg-stone-900 px-3 py-4">
+    <nav className="flex h-full flex-col gap-3 overflow-y-auto bg-stone-900 px-3 py-4">
       <Link href="/" className="px-2" onClick={() => setNavOpen(false)}>
         <Logo light />
       </Link>

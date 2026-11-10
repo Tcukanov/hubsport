@@ -14,7 +14,8 @@ const PAGE = 25;
 export function CreateRecordDrawer({ kind, open, onClose, initial }: { kind: ObjectKind; open: boolean; onClose: () => void; initial?: Patch }) {
   const cfg = OBJECTS[kind];
   const { db, create, me } = useData();
-  const blank = () => ({ ...cfg.defaults(), ownerId: me.id, ...initial });
+  const hasOwner = cfg.props.some((p) => p.key === "ownerId");
+  const blank = () => ({ ...cfg.defaults(), ...(hasOwner ? { ownerId: me.id } : {}), ...initial });
   const [values, setValues] = useState<Patch>(blank);
   const nameOk = kind === "contacts" ? values.email || values.firstName || values.lastName : values.name;
 
@@ -23,7 +24,9 @@ export function CreateRecordDrawer({ kind, open, onClose, initial }: { kind: Obj
     onClose();
   };
   const save = () => {
-    create(kind, values);
+    // A ticket or order for a contact belongs to that contact's company too.
+    const viaContact = "contactId" in values && !values.companyId ? db.contacts.find((c) => c.id === values.contactId)?.companyId : undefined;
+    create(kind, viaContact ? { ...values, companyId: viaContact } : values);
     close();
   };
 

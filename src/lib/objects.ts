@@ -1,9 +1,10 @@
-import { DEAL_STAGES, DEAL_TYPES, INDUSTRIES, LEAD_STATUS, LIFECYCLE, PRIORITIES, SIZES, SOURCES, type Option } from "./config";
+import { BILLING, DEAL_STAGES, DEAL_TYPES, INDUSTRIES, LEAD_STATUS, LIFECYCLE, ORDER_STATUS, PRIORITIES, SIZES, SOURCES, TICKET_SOURCES, TICKET_STATUS, type Option } from "./config";
+import { todayYmd } from "./format";
 import { addDays } from "./format";
 import type { AnyRec, Patch } from "./types";
 
-export type ObjectKind = "contacts" | "companies" | "deals";
-export type PropType = "text" | "email" | "phone" | "number" | "money" | "date" | "select" | "user" | "company" | "bool";
+export type ObjectKind = "contacts" | "companies" | "deals" | "tickets" | "products" | "orders";
+export type PropType = "text" | "email" | "phone" | "number" | "money" | "date" | "select" | "user" | "company" | "contact" | "textarea" | "bool";
 
 export interface PropDef {
   key: string;
@@ -22,14 +23,20 @@ export interface ObjectCfg {
   columns: string[];
   createKeys: string[];
   defaults: () => Patch;
+  /** The property shown as a clickable stage bar at the top of the record page. */
+  stageKey?: string;
+  /** Whether records have an activity timeline (notes, calls, emails, tasks). */
+  timeline: boolean;
 }
 
 const owner: PropDef = { key: "ownerId", label: "Owner", type: "user", filter: true };
 const created: PropDef = { key: "createdAt", label: "Created", type: "date", readOnly: true };
 const company: PropDef = { key: "companyId", label: "Company", type: "company" };
+const contact: PropDef = { key: "contactId", label: "Contact", type: "contact" };
 
-export const OBJECTS: Record<ObjectKind, ObjectCfg> = {
+const CORE: Record<string, ObjectCfg> = {
   contacts: {
+    timeline: true,
     singular: "Contact",
     plural: "Contacts",
     path: "/contacts",
@@ -68,6 +75,7 @@ export const OBJECTS: Record<ObjectKind, ObjectCfg> = {
     }),
   },
   companies: {
+    timeline: true,
     singular: "Company",
     plural: "Companies",
     path: "/companies",
@@ -88,6 +96,8 @@ export const OBJECTS: Record<ObjectKind, ObjectCfg> = {
     defaults: () => ({ name: "", domain: "", industry: "Software", size: "11-50", annualRevenue: null, phone: "", city: "", country: "", ownerId: null }),
   },
   deals: {
+    timeline: true,
+    stageKey: "stage",
     singular: "Deal",
     plural: "Deals",
     path: "/deals",
@@ -107,6 +117,70 @@ export const OBJECTS: Record<ObjectKind, ObjectCfg> = {
     defaults: () => ({ name: "", amount: 0, stage: "lead_in", closeDate: addDays(30), ownerId: null, companyId: null, contactIds: [], priority: "medium", dealType: "new" }),
   },
 };
+
+const EXTRA: Record<string, ObjectCfg> = {
+  tickets: {
+    timeline: true,
+    stageKey: "status",
+    singular: "Ticket",
+    plural: "Tickets",
+    path: "/tickets",
+    props: [
+      { key: "name", label: "Ticket name", type: "text" },
+      { key: "description", label: "Description", type: "textarea" },
+      { key: "status", label: "Status", type: "select", options: TICKET_STATUS, filter: true },
+      { key: "priority", label: "Priority", type: "select", options: PRIORITIES, filter: true },
+      { key: "source", label: "Source", type: "select", options: TICKET_SOURCES },
+      contact,
+      company,
+      owner,
+      created,
+    ],
+    columns: ["status", "priority", "contactId", "source", "ownerId", "createdAt"],
+    createKeys: ["name", "description", "status", "priority", "source", "contactId", "ownerId"],
+    defaults: () => ({ name: "", description: "", status: "new", priority: "medium", source: "email", contactId: null, companyId: null, ownerId: null, closedAt: null }),
+  },
+  products: {
+    timeline: false,
+    singular: "Product",
+    plural: "Products",
+    path: "/products",
+    props: [
+      { key: "name", label: "Product name", type: "text" },
+      { key: "sku", label: "SKU", type: "text" },
+      { key: "price", label: "Unit price", type: "money" },
+      { key: "billing", label: "Billing", type: "select", options: BILLING, filter: true },
+      { key: "description", label: "Description", type: "textarea" },
+      { key: "active", label: "Available for sale", type: "bool" },
+      created,
+    ],
+    columns: ["sku", "price", "billing", "active", "createdAt"],
+    createKeys: ["name", "sku", "price", "billing", "description"],
+    defaults: () => ({ name: "", sku: "", price: 0, billing: "one_time", description: "", active: true }),
+  },
+  orders: {
+    timeline: false,
+    stageKey: "status",
+    singular: "Order",
+    plural: "Orders",
+    path: "/orders",
+    props: [
+      { key: "name", label: "Order name", type: "text" },
+      { key: "status", label: "Status", type: "select", options: ORDER_STATUS, filter: true },
+      { key: "amount", label: "Total", type: "money", readOnly: true },
+      { key: "orderDate", label: "Order date", type: "date" },
+      contact,
+      company,
+      owner,
+      created,
+    ],
+    columns: ["status", "amount", "orderDate", "contactId", "ownerId"],
+    createKeys: ["name", "status", "orderDate", "contactId", "ownerId"],
+    defaults: () => ({ name: "", status: "pending", amount: 0, orderDate: todayYmd(), lineItems: [], contactId: null, companyId: null, ownerId: null }),
+  },
+};
+
+export const OBJECTS = { ...CORE, ...EXTRA } as Record<ObjectKind, ObjectCfg>;
 
 export function displayName(kind: ObjectKind, rec: AnyRec | null | undefined) {
   if (!rec) return "";

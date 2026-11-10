@@ -19,6 +19,15 @@ function normalize(db: DB) {
   db.workflows ??= [];
   db.workflowRuns ??= [];
   db.prospects ??= [];
+  // Workspaces created before tickets, products and orders existed get the demo set for them.
+  if (!db.tickets || !db.products || !db.orders) {
+    const demo = buildSeed(db.users[0]);
+    const contactIds = new Set(db.contacts.map((c) => c.id));
+    const known = <T extends { contactId: string | null }>(list: T[]) => list.filter((x) => !x.contactId || contactIds.has(x.contactId));
+    db.products ??= demo.products;
+    db.tickets ??= known(demo.tickets);
+    db.orders ??= known(demo.orders);
+  }
   return db;
 }
 
@@ -211,7 +220,8 @@ const routes: Record<string, Handler> = {
     const r = await sendMail({ to: contact.email, subject, html: plainEmailHtml(text), text, fromName: user.name, replyTo: user.email });
     if (!r.ok) throw new HttpError(502, `The email could not be sent: ${r.error}`);
     const dealId = db.deals.some((d) => d.id === body.dealId) ? (body.dealId as string) : null;
-    await getStore().updateDB((d) => withMeta(newMeta(user.id), () => logActivity(d, { type: "email", subject, body: text, contactId: contact.id, companyId: contact.companyId, dealId })));
+    const ticketId = db.tickets.some((t) => t.id === body.ticketId) ? (body.ticketId as string) : null;
+    await getStore().updateDB((d) => withMeta(newMeta(user.id), () => logActivity(d, { type: "email", subject, body: text, contactId: contact.id, companyId: contact.companyId, dealId, ticketId })));
     return json({ ok: true });
   },
 

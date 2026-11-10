@@ -1,4 +1,4 @@
-import type { Activity, Company, Contact, DB, Deal, Send, Submission, Task, User } from "./types";
+import type { Activity, Company, Contact, DB, Deal, LineItem, Order, Product, Send, Submission, Task, Ticket, User } from "./types";
 import { ymd } from "./format";
 
 function rng(seed: number) {
@@ -299,6 +299,74 @@ export function buildSeed(me: User): DB {
   sendTo("e_1", contacts.filter((c) => c.subscribed && new Date(c.createdAt) < new Date(ago(21))), ago(21), "October product update");
   sendTo("e_2", contacts.filter((c) => c.subscribed && c.lifecycleStage === "customer" && new Date(c.createdAt) < new Date(ago(8))), ago(8), "Customer check-in");
 
+  const products: Product[] = (
+    [
+      ["Starter plan", "PLAN-START", 490, "annual", "Up to 5 users, core CRM."],
+      ["Team plan", "PLAN-TEAM", 1900, "annual", "Up to 25 users, automation included."],
+      ["Enterprise plan", "PLAN-ENT", 9600, "annual", "Unlimited users, priority support."],
+      ["Onboarding package", "SVC-ONB", 1500, "one_time", "Guided setup and data import."],
+      ["Training workshop", "SVC-TRAIN", 800, "one_time", "Half-day live session for the team."],
+      ["Premium support", "SUP-PREM", 150, "monthly", "Four-hour response time."],
+    ] as [string, string, number, string, string][]
+  ).map(([name, sku, price, billing, description], i) => ({ id: `pr_${i + 1}`, name, sku, price, billing, description, active: true, createdAt: ago(200), updatedAt: ago(200) }));
+
+  const pickItems = (): LineItem[] => {
+    const first = pick(products.slice(0, 3));
+    const items: LineItem[] = [{ productId: first.id, name: first.name, quantity: int(1, 3), price: first.price }];
+    if (r() < 0.6) {
+      const extra = pick(products.slice(3));
+      items.push({ productId: extra.id, name: extra.name, quantity: extra.billing === "monthly" ? 12 : 1, price: extra.price });
+    }
+    return items;
+  };
+  deals.forEach((d, i) => {
+    if (i % 3 === 0) d.lineItems = pickItems();
+  });
+
+  const TICKETS = ["Cannot import contacts from CSV", "Invoice shows the wrong billing address", "How do I add a second pipeline?", "Password reset email not arriving", "Dashboard totals look off", "Request: export deals to a spreadsheet", "Email tracking is not recording opens", "Need help setting up a form", "User cannot see assigned tasks", "Question about upgrading our plan", "Duplicate contacts after import", "Workflow did not send its email"];
+  const ticketStatus = ["new", "new", "waiting_us", "waiting_contact", "waiting_us", "closed", "closed", "new", "waiting_contact", "closed", "waiting_us", "new"];
+  const customers = contacts.filter((c) => c.lifecycleStage === "customer" || c.lifecycleStage === "opportunity");
+  const tickets: Ticket[] = TICKETS.map((name, i) => {
+    const c = customers[i % customers.length];
+    const created = ago(int(0, 25));
+    const status = ticketStatus[i];
+    log({ type: "created", body: "Ticket created", ticketId: `tk_${i + 1}`, contactId: c.id, companyId: c.companyId, createdAt: created });
+    return {
+      id: `tk_${i + 1}`,
+      name,
+      description: "Reported by the customer. See the timeline for the conversation so far.",
+      status,
+      priority: pick(["low", "medium", "medium", "high"]),
+      source: pick(["email", "chat", "phone", "form"]),
+      contactId: c.id,
+      companyId: c.companyId,
+      ownerId: i < 5 ? me.id : owner(),
+      createdAt: created,
+      updatedAt: created,
+      closedAt: status === "closed" ? created : null,
+    };
+  });
+
+  const orderStatus = ["paid", "fulfilled", "fulfilled", "pending", "paid", "fulfilled", "refunded", "pending", "fulfilled", "cancelled"];
+  const orders: Order[] = orderStatus.map((status, i) => {
+    const c = customers[(i * 2 + 1) % customers.length];
+    const lineItems = pickItems();
+    const created = ago(int(1, 90));
+    return {
+      id: `o_${i + 1}`,
+      name: `Order #${1001 + i}`,
+      status,
+      amount: lineItems.reduce((sum, li) => sum + li.quantity * li.price, 0),
+      orderDate: created.slice(0, 10),
+      lineItems,
+      contactId: c.id,
+      companyId: c.companyId,
+      ownerId: owner(),
+      createdAt: created,
+      updatedAt: created,
+    };
+  });
+
   const workflows = [
     {
       id: "w_1",
@@ -337,5 +405,5 @@ export function buildSeed(me: User): DB {
     },
   ];
 
-  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends, workflows, workflowRuns: [], prospects: [] };
+  return { users, contacts, companies, deals, tasks, activities, segments, forms, submissions, emails, sends, workflows, workflowRuns: [], prospects: [], tickets, products, orders };
 }
