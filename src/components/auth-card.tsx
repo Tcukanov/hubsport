@@ -1,7 +1,7 @@
 "use client";
 
-import { Waypoints } from "lucide-react";
 import { useState } from "react";
+import { Logo } from "./logo";
 import { Button, Field, inputCls } from "./ui";
 
 export interface AuthField {
@@ -36,11 +36,8 @@ export function AuthCard({
   return (
     <div className="flex min-h-screen items-center justify-center bg-stone-900 px-4 py-10">
       <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-xl">
-        <div className="mb-5 flex items-center gap-2 text-stone-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white">
-            <Waypoints size={18} />
-          </span>
-          <span className="text-lg font-semibold tracking-tight">Pipeline</span>
+        <div className="mb-5">
+          <Logo />
         </div>
         <h1 className="text-xl font-semibold tracking-tight text-stone-900">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-stone-600">{subtitle}</p>}

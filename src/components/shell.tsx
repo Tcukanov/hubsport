@@ -16,7 +16,6 @@ import {
   Settings,
   Target,
   Users,
-  Waypoints,
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +23,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { displayName } from "@/lib/objects";
 import { call, useData } from "./data";
+import { Logo } from "./logo";
 import { Avatar, cx } from "./ui";
 
 const NAV = [
@@ -176,11 +176,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   const nav = (
     <nav className="flex h-full flex-col gap-4 overflow-y-auto bg-stone-900 px-3 py-4">
-      <Link href="/" className="flex items-center gap-2 px-2 text-white" onClick={() => setNavOpen(false)}>
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500 text-white">
-          <Waypoints size={18} />
-        </span>
-        <span className="text-lg font-semibold tracking-tight">Pipeline</span>
+      <Link href="/" className="px-2" onClick={() => setNavOpen(false)}>
+        <Logo light />
       </Link>
       {NAV.map((group) => (
         <div key={group.label || "top"}>
