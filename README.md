@@ -37,6 +37,14 @@ npm run dev
 
 Open the app, create the workspace (first sign-up), and explore. No setup is needed locally.
 
+## Tests
+
+```bash
+npm test
+```
+
+Runs the automated tests in `tests/`: the rules for what the browser may change, record clean-up, form submissions, inbox threading, automation workflows, segments, and meeting-slot calculation across time zones.
+
 ## Deploy on Vercel
 
 1. Import the repository.

@@ -44,15 +44,23 @@ function fileStore(): Store {
     return run;
   };
   const load = async (): Promise<{ users: AppUser[]; db: DB | null }> => {
+    let text: string;
     try {
-      return JSON.parse(await fs.readFile(file, "utf8"));
-    } catch {
-      return { users: [], db: null };
+      text = await fs.readFile(file, "utf8");
+    } catch (err) {
+      // Only "the file does not exist yet" means an empty store. Any other failure must not be mistaken for one.
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return { users: [], db: null };
+      throw err;
     }
+    return JSON.parse(text);
   };
   const save = async (state: { users: AppUser[]; db: DB | null }) => {
     await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(file, JSON.stringify(state));
+    // Write to a temporary file and rename it into place. A rename is atomic, so a
+    // request reading at the same moment sees the old file or the new one, never half of one.
+    const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(state));
+    await fs.rename(tmp, file);
   };
   const change = <T,>(fn: (s: { users: AppUser[]; db: DB | null }) => T) =>
     exclusive(async () => {

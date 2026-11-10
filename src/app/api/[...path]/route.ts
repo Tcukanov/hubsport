@@ -198,7 +198,8 @@ const routes: Record<string, Handler> = {
     const body = await readBody(req);
     const sent = (body.meta ?? {}) as Partial<Meta>;
     const seed = str(sent.seed, 40);
-    if (!/^[a-z0-9]+$/.test(seed)) throw new HttpError(400, "Bad operation.");
+    const kind = (body.op as { t?: unknown } | null)?.t;
+    if (!/^[a-z0-9]+$/.test(seed) || !["create", "update", "remove", "log"].includes(kind as string)) throw new HttpError(400, "Bad operation.");
     // Use the browser's timestamp (so both sides agree) unless its clock is far off.
     const theirs = Date.parse(str(sent.now, 40));
     const inSync = Number.isFinite(theirs) && Math.abs(theirs - Date.now()) < 10 * 60_000;
