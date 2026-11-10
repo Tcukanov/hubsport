@@ -61,7 +61,7 @@ export default function EmailsPage() {
                 return (
                   <tr key={e.id} className="hover:bg-stone-50">
                     <td className="px-4 py-2.5">
-                      <Link href={`/emails/${e.id}`} className="font-medium text-violet-700 hover:underline">
+                      <Link href={`/emails/${e.id}`} className="font-medium text-teal-700 hover:underline">
                         {e.name}
                       </Link>
                       <span className="block max-w-xs truncate text-xs text-stone-500">{e.subject || "No subject"}</span>

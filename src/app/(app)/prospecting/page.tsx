@@ -25,7 +25,7 @@ function DraftCard({ p }: { p: Prospect }) {
     <Card>
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/contacts/${contact.id}`} className="font-semibold text-violet-700 hover:underline">
+          <Link href={`/contacts/${contact.id}`} className="font-semibold text-teal-700 hover:underline">
             {displayName("contacts", contact)}
           </Link>
           <span className="text-sm text-stone-500">{[contact.jobTitle, company?.name].filter(Boolean).join(" at ")}</span>
@@ -182,7 +182,7 @@ export default function ProspectingPage() {
                 <span>
                   Contacts ({picked.size} of up to {MAX} selected)
                 </span>
-                <button type="button" className="font-medium text-violet-700 hover:underline" onClick={() => setPicked(new Set(candidates.slice(0, 5).map((c) => c.id)))}>
+                <button type="button" className="font-medium text-teal-700 hover:underline" onClick={() => setPicked(new Set(candidates.slice(0, 5).map((c) => c.id)))}>
                   Pick first 5
                 </button>
               </div>
@@ -196,7 +196,7 @@ export default function ProspectingPage() {
                       <label className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm hover:bg-stone-50">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 accent-violet-600"
+                          className="h-4 w-4 accent-teal-600"
                           checked={on}
                           disabled={!on && picked.size >= MAX}
                           onChange={() =>

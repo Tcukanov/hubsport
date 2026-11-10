@@ -34,7 +34,7 @@ function Preview({ email, db }: { email: MarketingEmail; db: DB }) {
                 {p}
               </p>
             ))}
-          {email.ctaLabel && <span className="inline-block rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white">{email.ctaLabel}</span>}
+          {email.ctaLabel && <span className="inline-block rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white">{email.ctaLabel}</span>}
         </div>
         <div className="border-t border-stone-100 px-5 py-3 text-center text-xs text-stone-400">You are receiving this because you subscribed. Unsubscribe</div>
       </div>
@@ -57,7 +57,7 @@ export default function EmailPage() {
   if (!email)
     return (
       <Empty title="Email not found">
-        <Link href="/emails" className="text-sm text-violet-700 hover:underline">
+        <Link href="/emails" className="text-sm text-teal-700 hover:underline">
           Back to emails
         </Link>
       </Empty>
@@ -86,7 +86,7 @@ export default function EmailPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input
           aria-label="Email name"
-          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-stone-900 outline-none hover:border-stone-300 focus:border-violet-500 focus:bg-white"
+          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-stone-900 outline-none hover:border-stone-300 focus:border-teal-500 focus:bg-white"
           value={email.name}
           onChange={(e) => set({ name: e.target.value })}
         />
@@ -142,7 +142,7 @@ export default function EmailPage() {
                       return (
                         <tr key={s.id} className="hover:bg-stone-50">
                           <td className="px-4 py-2">
-                            <Link href={`/contacts/${c.id}`} className="font-medium text-violet-700 hover:underline">
+                            <Link href={`/contacts/${c.id}`} className="font-medium text-teal-700 hover:underline">
                               {displayName("contacts", c)}
                             </Link>
                             <span className="ml-2 text-xs text-stone-500">{c.email}</span>

@@ -10,10 +10,10 @@ export function cx(...parts: (string | false | null | undefined)[]) {
 }
 
 export const inputCls =
-  "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none placeholder:text-stone-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
+  "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none placeholder:text-stone-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
 
 const VARIANTS = {
-  primary: "bg-violet-600 text-white hover:bg-violet-700 border-transparent",
+  primary: "bg-stone-900 text-white hover:bg-stone-700 border-transparent",
   secondary: "bg-white text-stone-800 hover:bg-stone-50 border-stone-300",
   ghost: "bg-transparent text-stone-600 hover:bg-stone-100 border-transparent",
   danger: "bg-white text-rose-700 hover:bg-rose-50 border-rose-200",
@@ -30,7 +30,7 @@ export function Button({
       type="button"
       {...props}
       className={cx(
-        "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         size === "sm" ? "px-2.5 py-1.5 text-xs" : "px-3.5 py-2 text-sm",
         VARIANTS[variant],
         className,
@@ -100,7 +100,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { valu
           onClick={() => onChange(t.value)}
           className={cx(
             "-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium",
-            value === t.value ? "border-violet-600 text-violet-700" : "border-transparent text-stone-500 hover:text-stone-800",
+            value === t.value ? "border-teal-600 text-teal-700" : "border-transparent text-stone-500 hover:text-stone-800",
           )}
         >
           {t.label}

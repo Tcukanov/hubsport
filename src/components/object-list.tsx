@@ -176,7 +176,7 @@ export function ObjectList({ kind, headerExtra, hideHeader }: { kind: ObjectKind
                 <input
                   type="checkbox"
                   aria-label="Select all on this page"
-                  className="h-4 w-4 accent-violet-600"
+                  className="h-4 w-4 accent-teal-600"
                   checked={allSelected}
                   onChange={() =>
                     setSelected((s) => {
@@ -195,10 +195,10 @@ export function ObjectList({ kind, headerExtra, hideHeader }: { kind: ObjectKind
             {visible.map((r) => (
               <tr key={r.id} className="hover:bg-stone-50">
                 <td className="px-3 py-2.5">
-                  <input type="checkbox" aria-label={`Select ${displayName(kind, r)}`} className="h-4 w-4 accent-violet-600" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
+                  <input type="checkbox" aria-label={`Select ${displayName(kind, r)}`} className="h-4 w-4 accent-teal-600" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
                 <td className="max-w-[260px] truncate px-3 py-2.5 font-medium">
-                  <Link href={`${cfg.path}/${r.id}`} className="text-violet-700 hover:underline">
+                  <Link href={`${cfg.path}/${r.id}`} className="text-teal-700 hover:underline">
                     {displayName(kind, r)}
                   </Link>
                 </td>

@@ -19,7 +19,7 @@ export default function SignupPage() {
       ]}
       onSubmit={(v) => call("auth/signup", v)}
       footer={
-        <Link href="/login" className="text-violet-700 hover:underline">
+        <Link href="/login" className="text-teal-700 hover:underline">
           I already have an account
         </Link>
       }

@@ -21,7 +21,7 @@ export default function SegmentPage() {
   if (!segment)
     return (
       <Empty title="Segment not found">
-        <Link href="/segments" className="text-sm text-violet-700 hover:underline">
+        <Link href="/segments" className="text-sm text-teal-700 hover:underline">
           Back to segments
         </Link>
       </Empty>
@@ -40,11 +40,11 @@ export default function SegmentPage() {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           aria-label="Segment name"
-          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-stone-900 outline-none hover:border-stone-300 focus:border-violet-500 focus:bg-white"
+          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-stone-900 outline-none hover:border-stone-300 focus:border-teal-500 focus:bg-white"
           value={segment.name}
           onChange={(e) => update("segments", id, { name: e.target.value })}
         />
-        <span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-800">
+        <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-medium text-teal-800">
           {matches.length} contact{matches.length === 1 ? "" : "s"}
         </span>
       </div>
@@ -138,7 +138,7 @@ export default function SegmentPage() {
                 {matches.slice(0, 100).map((c) => (
                   <tr key={c.id} className="hover:bg-stone-50">
                     <td className="px-4 py-2.5 font-medium">
-                      <Link href={`/contacts/${c.id}`} className="text-violet-700 hover:underline">
+                      <Link href={`/contacts/${c.id}`} className="text-teal-700 hover:underline">
                         {displayName("contacts", c)}
                       </Link>
                     </td>

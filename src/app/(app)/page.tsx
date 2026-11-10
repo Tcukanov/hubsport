@@ -41,7 +41,7 @@ export default function HomePage() {
         <Card
           title="My tasks due"
           action={
-            <Link href="/tasks" className="text-xs font-medium text-violet-700 hover:underline">
+            <Link href="/tasks" className="text-xs font-medium text-teal-700 hover:underline">
               All tasks
             </Link>
           }
@@ -52,7 +52,7 @@ export default function HomePage() {
             <ul className="divide-y divide-stone-100">
               {myTasks.slice(0, 7).map((t) => (
                 <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <input type="checkbox" aria-label={`Mark "${t.title}" complete`} className="h-4 w-4 accent-violet-600" checked={false} onChange={() => update("tasks", t.id, { status: "done" })} />
+                  <input type="checkbox" aria-label={`Mark "${t.title}" complete`} className="h-4 w-4 accent-teal-600" checked={false} onChange={() => update("tasks", t.id, { status: "done" })} />
                   <span className="min-w-0 flex-1 truncate text-sm text-stone-900">{t.title}</span>
                   <span className={cx("whitespace-nowrap text-xs", t.dueDate < today ? "font-medium text-rose-600" : "text-stone-500")}>{t.dueDate < today ? `Overdue · ${fmtDate(t.dueDate)}` : "Today"}</span>
                 </li>
@@ -64,7 +64,7 @@ export default function HomePage() {
         <Card
           title="Deals closing soon"
           action={
-            <Link href="/deals" className="text-xs font-medium text-violet-700 hover:underline">
+            <Link href="/deals" className="text-xs font-medium text-teal-700 hover:underline">
               Open board
             </Link>
           }
@@ -75,7 +75,7 @@ export default function HomePage() {
               return (
                 <li key={d.id} className="flex items-center gap-3 px-4 py-2.5">
                   <div className="min-w-0 flex-1">
-                    <Link href={`/deals/${d.id}`} className="block truncate text-sm font-medium text-violet-700 hover:underline">
+                    <Link href={`/deals/${d.id}`} className="block truncate text-sm font-medium text-teal-700 hover:underline">
                       {d.name}
                     </Link>
                     <span className="text-xs text-stone-500">Close {fmtDate(d.closeDate)}</span>
@@ -93,7 +93,7 @@ export default function HomePage() {
         className="mt-5"
         title="Recent activity"
         action={
-          <Link href="/activity" className="text-xs font-medium text-violet-700 hover:underline">
+          <Link href="/activity" className="text-xs font-medium text-teal-700 hover:underline">
             See all
           </Link>
         }

@@ -44,7 +44,7 @@ export default function SegmentsPage() {
               {db.segments.map((s) => (
                 <tr key={s.id} className="hover:bg-stone-50">
                   <td className="px-4 py-2.5 font-medium">
-                    <Link href={`/segments/${s.id}`} className="text-violet-700 hover:underline">
+                    <Link href={`/segments/${s.id}`} className="text-teal-700 hover:underline">
                       {s.name}
                     </Link>
                   </td>

@@ -116,7 +116,7 @@ export function plainEmailHtml(body: string) {
 export function marketingEmail(email: MarketingEmail, contact: Contact, company: Company | undefined, links: { open: string; click: string; unsubscribe: string }) {
   const t = (s: string) => renderTokens(s, contact, company);
   const button = email.ctaLabel
-    ? `<p style="margin:8px 0 20px"><a href="${esc(links.click)}" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:bold">${esc(t(email.ctaLabel))}</a></p>`
+    ? `<p style="margin:8px 0 20px"><a href="${esc(links.click)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:bold">${esc(t(email.ctaLabel))}</a></p>`
     : "";
   const footer = `<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #e7e5e4;font-size:12px;color:#78716c">You are receiving this because you subscribed. <a href="${esc(links.unsubscribe)}" style="color:#78716c">Unsubscribe</a></p>`;
   const preview = email.previewText ? `<div style="display:none;max-height:0;overflow:hidden">${esc(t(email.previewText))}</div>` : "";

@@ -45,7 +45,7 @@ function Board() {
                 setDragId(null);
                 setOver(null);
               }}
-              className={cx("flex w-64 shrink-0 flex-col rounded-xl border bg-stone-100/70", over === stage.value ? "border-violet-400 bg-violet-50" : "border-stone-200")}
+              className={cx("flex w-64 shrink-0 flex-col rounded-xl border bg-stone-100/70", over === stage.value ? "border-teal-400 bg-teal-50" : "border-stone-200")}
             >
               <div className="flex items-center justify-between px-3 pt-3">
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-600">{stage.label}</h2>
@@ -67,7 +67,7 @@ function Board() {
                       }}
                       className={cx("cursor-grab rounded-lg border border-stone-200 bg-white p-3 shadow-sm active:cursor-grabbing", dragId === d.id && "opacity-50")}
                     >
-                      <Link href={`/deals/${d.id}`} className="block text-sm font-medium text-violet-700 hover:underline">
+                      <Link href={`/deals/${d.id}`} className="block text-sm font-medium text-teal-700 hover:underline">
                         {d.name}
                       </Link>
                       <p className="mt-1 text-sm font-semibold tabular-nums text-stone-900">{money(d.amount)}</p>

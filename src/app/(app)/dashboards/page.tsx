@@ -19,7 +19,7 @@ function HBars({ data, format = String }: { data: Datum[]; format?: (n: number) 
       {data.map((d) => (
         <li key={d.label} className="grid grid-cols-[130px_minmax(0,1fr)_70px] items-center gap-3 text-sm" title={`${d.label}: ${format(d.value)}`}>
           <span className="truncate text-stone-600">{d.label}</span>
-          <span className="h-3.5 rounded-r bg-violet-600" style={{ width: `${(d.value / max) * 100}%`, minWidth: d.value ? 3 : 0 }} />
+          <span className="h-3.5 rounded-r bg-teal-600" style={{ width: `${(d.value / max) * 100}%`, minWidth: d.value ? 3 : 0 }} />
           <span className="text-right font-medium tabular-nums text-stone-900">{format(d.value)}</span>
         </li>
       ))}
@@ -45,7 +45,7 @@ function VBars({ data, format = String }: { data: Datum[]; format?: (n: number) 
             <div
               role="img"
               aria-label={`${d.label}: ${format(d.value)}`}
-              className={`w-full rounded-t ${hover === i ? "bg-violet-800" : "bg-violet-600"}`}
+              className={`w-full rounded-t ${hover === i ? "bg-teal-800" : "bg-teal-600"}`}
               style={{ height: `${(d.value / max) * 100}%`, minHeight: d.value ? 3 : 0 }}
             />
           </div>

@@ -31,7 +31,7 @@ export function PropValue({ def, rec, db }: { def: PropDef; rec: AnyRec; db: DB 
       const c = db.companies.find((x) => x.id === v);
       if (!c) return <span className="text-stone-400">—</span>;
       return (
-        <Link href={`/companies/${c.id}`} className="text-violet-700 hover:underline">
+        <Link href={`/companies/${c.id}`} className="text-teal-700 hover:underline">
           {c.name}
         </Link>
       );
@@ -66,7 +66,7 @@ export function PropField({ def, value, onChange, db }: { def: PropDef; value: u
   }
 
   if (def.type === "bool")
-    return <input type="checkbox" aria-label={def.label} className="h-4 w-4 accent-violet-600" checked={!!value} onChange={(e) => onChange(e.target.checked)} />;
+    return <input type="checkbox" aria-label={def.label} className="h-4 w-4 accent-teal-600" checked={!!value} onChange={(e) => onChange(e.target.checked)} />;
 
   if (def.type === "select" || def.type === "user" || def.type === "company") {
     const options =

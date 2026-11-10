@@ -19,7 +19,7 @@ export default function WorkflowPage() {
   if (!wf)
     return (
       <Empty title="Workflow not found">
-        <Link href="/automation" className="text-sm text-violet-700 hover:underline">
+        <Link href="/automation" className="text-sm text-teal-700 hover:underline">
           Back to automation
         </Link>
       </Empty>
@@ -47,7 +47,7 @@ export default function WorkflowPage() {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           aria-label="Workflow name"
-          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-stone-900 outline-none hover:border-stone-300 focus:border-violet-500 focus:bg-white"
+          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-stone-900 outline-none hover:border-stone-300 focus:border-teal-500 focus:bg-white"
           value={wf.name}
           onChange={(e) => set({ name: e.target.value })}
         />
@@ -59,7 +59,7 @@ export default function WorkflowPage() {
         <div className="space-y-3">
           <Card>
             <div className="space-y-3 p-4">
-              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-700">
                 <Zap size={14} />
                 Start when
               </p>
@@ -222,7 +222,7 @@ export default function WorkflowPage() {
                   return (
                     <li key={r.id} className="px-4 py-2.5 text-sm">
                       {contact ? (
-                        <Link href={`/contacts/${contact.id}`} className="font-medium text-violet-700 hover:underline">
+                        <Link href={`/contacts/${contact.id}`} className="font-medium text-teal-700 hover:underline">
                           {displayName("contacts", contact)}
                         </Link>
                       ) : (

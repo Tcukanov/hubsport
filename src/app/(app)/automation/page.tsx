@@ -64,7 +64,7 @@ export default function AutomationPage() {
                       <Toggle on={w.enabled} label={`Turn ${w.name} ${w.enabled ? "off" : "on"}`} onChange={(v) => update("workflows", w.id, { enabled: v })} />
                     </td>
                     <td className="px-4 py-2.5 font-medium">
-                      <Link href={`/automation/${w.id}`} className="text-violet-700 hover:underline">
+                      <Link href={`/automation/${w.id}`} className="text-teal-700 hover:underline">
                         {w.name}
                       </Link>
                     </td>
@@ -98,12 +98,12 @@ export default function AutomationPage() {
                 <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
                   <span className="font-medium text-stone-900">{w?.name ?? "Deleted workflow"}</span>
                   {contact && (
-                    <Link href={`/contacts/${contact.id}`} className="text-violet-700 hover:underline">
+                    <Link href={`/contacts/${contact.id}`} className="text-teal-700 hover:underline">
                       {displayName("contacts", contact)}
                     </Link>
                   )}
                   {deal && (
-                    <Link href={`/deals/${deal.id}`} className="text-violet-700 hover:underline">
+                    <Link href={`/deals/${deal.id}`} className="text-teal-700 hover:underline">
                       {deal.name}
                     </Link>
                   )}

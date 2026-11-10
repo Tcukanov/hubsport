@@ -86,7 +86,7 @@ export default function TasksPage() {
                       <input
                         type="checkbox"
                         aria-label={`Mark "${t.title}" complete`}
-                        className="h-4 w-4 accent-violet-600"
+                        className="h-4 w-4 accent-teal-600"
                         checked={t.status === "done"}
                         onChange={(e) => update("tasks", t.id, { status: e.target.checked ? "done" : "open" })}
                       />
@@ -96,15 +96,15 @@ export default function TasksPage() {
                     <td className="px-3 py-2.5">{priority && <Badge tone={priority.tone}>{priority.label}</Badge>}</td>
                     <td className="px-3 py-2.5">
                       {contact ? (
-                        <Link className="text-violet-700 hover:underline" href={`/contacts/${contact.id}`}>
+                        <Link className="text-teal-700 hover:underline" href={`/contacts/${contact.id}`}>
                           {displayName("contacts", contact)}
                         </Link>
                       ) : deal ? (
-                        <Link className="text-violet-700 hover:underline" href={`/deals/${deal.id}`}>
+                        <Link className="text-teal-700 hover:underline" href={`/deals/${deal.id}`}>
                           {deal.name}
                         </Link>
                       ) : company ? (
-                        <Link className="text-violet-700 hover:underline" href={`/companies/${company.id}`}>
+                        <Link className="text-teal-700 hover:underline" href={`/companies/${company.id}`}>
                           {company.name}
                         </Link>
                       ) : (

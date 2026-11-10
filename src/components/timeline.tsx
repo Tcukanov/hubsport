@@ -10,7 +10,7 @@ import { useData } from "./data";
 export const ACTIVITY_TYPES: Record<string, { label: string; icon: typeof Mail; tone: string }> = {
   note: { label: "Note", icon: StickyNote, tone: "bg-amber-100 text-amber-700" },
   call: { label: "Call", icon: Phone, tone: "bg-sky-100 text-sky-700" },
-  email: { label: "Email", icon: Mail, tone: "bg-violet-100 text-violet-700" },
+  email: { label: "Email", icon: Mail, tone: "bg-teal-100 text-teal-700" },
   meeting: { label: "Meeting", icon: CalendarDays, tone: "bg-emerald-100 text-emerald-700" },
   task: { label: "Task", icon: CheckSquare, tone: "bg-teal-100 text-teal-700" },
   created: { label: "Record created", icon: Sparkles, tone: "bg-stone-100 text-stone-600" },
@@ -55,7 +55,7 @@ export function ActivityItem({ a, showTarget }: { a: Activity; showTarget?: bool
             {a.subject && LOGGED.includes(a.type) ? ` · ${a.subject}` : ""}
           </span>
           {t && (
-            <Link href={t.href} className="text-violet-700 hover:underline">
+            <Link href={t.href} className="text-teal-700 hover:underline">
               {t.label}
             </Link>
           )}

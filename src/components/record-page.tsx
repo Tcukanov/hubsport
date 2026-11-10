@@ -172,7 +172,7 @@ function AssocCard({
       title={`${title} (${items.length})`}
       action={
         onAdd && (
-          <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 hover:underline" onClick={() => setAdding((v) => !v)}>
+          <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline" onClick={() => setAdding((v) => !v)}>
             <Plus size={13} />
             Add
           </button>
@@ -204,7 +204,7 @@ function AssocCard({
         {items.map((it) => (
           <li key={it.id} className="group flex items-center justify-between gap-2 px-4 py-2.5">
             <div className="min-w-0">
-              <Link href={it.href} className="block truncate text-sm font-medium text-violet-700 hover:underline">
+              <Link href={it.href} className="block truncate text-sm font-medium text-teal-700 hover:underline">
                 {it.label}
               </Link>
               {it.sub && <span className="block truncate text-xs text-stone-500">{it.sub}</span>}
@@ -229,7 +229,7 @@ function TaskRow({ task }: { task: Task }) {
       <input
         type="checkbox"
         aria-label={`Mark "${task.title}" complete`}
-        className="h-4 w-4 accent-violet-600"
+        className="h-4 w-4 accent-teal-600"
         checked={task.status === "done"}
         onChange={(e) => update("tasks", task.id, { status: e.target.checked ? "done" : "open" })}
       />
@@ -258,7 +258,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
   if (!rec)
     return (
       <Empty title={`${cfg.singular} not found`} hint="It may have been deleted.">
-        <Link href={cfg.path} className="text-sm text-violet-700 hover:underline">
+        <Link href={cfg.path} className="text-sm text-teal-700 hover:underline">
           Back to {cfg.plural.toLowerCase()}
         </Link>
       </Empty>
@@ -305,7 +305,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
               onClick={() => update("deals", id, { stage: s.value })}
               className={cx(
                 "flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium",
-                rec.stage === s.value ? (s.value === "lost" ? "bg-rose-600 text-white" : s.value === "won" ? "bg-emerald-600 text-white" : "bg-violet-600 text-white") : "text-stone-600 hover:bg-stone-100",
+                rec.stage === s.value ? (s.value === "lost" ? "bg-rose-600 text-white" : s.value === "won" ? "bg-emerald-600 text-white" : "bg-teal-600 text-white") : "text-stone-600 hover:bg-stone-100",
               )}
             >
               {s.label}
@@ -318,7 +318,7 @@ export function RecordPage({ kind }: { kind: ObjectKind }) {
         <div className="space-y-5">
           <Card>
             <div className="flex items-center gap-3 px-4 pt-4">
-              <Avatar name={name} color={kind === "contacts" ? "#7c3aed" : kind === "companies" ? "#0d9488" : "#d97706"} size={44} />
+              <Avatar name={name} color={kind === "contacts" ? "#0f766e" : kind === "companies" ? "#0d9488" : "#d97706"} size={44} />
               <div className="min-w-0">
                 <h1 className="truncate text-lg font-semibold text-stone-900">{name}</h1>
                 <p className="truncate text-sm text-stone-500">

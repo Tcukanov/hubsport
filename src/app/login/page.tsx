@@ -32,7 +32,7 @@ export default function LoginPage() {
         hasUsers ? (
           "New here? Ask a workspace admin to invite you."
         ) : (
-          <Link href="/signup" className="text-violet-700 hover:underline">
+          <Link href="/signup" className="text-teal-700 hover:underline">
             Create the workspace
           </Link>
         )

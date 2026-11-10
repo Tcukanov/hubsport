@@ -56,7 +56,7 @@ export default function FormsPage() {
               {db.forms.map((f) => (
                 <tr key={f.id} className="hover:bg-stone-50">
                   <td className="px-4 py-2.5 font-medium">
-                    <Link href={`/forms/${f.id}`} className="text-violet-700 hover:underline">
+                    <Link href={`/forms/${f.id}`} className="text-teal-700 hover:underline">
                       {f.name}
                     </Link>
                   </td>

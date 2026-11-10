@@ -21,7 +21,7 @@ export default function InvitePage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center">
         <p className="text-sm text-stone-700">{bad}</p>
-        <Link href="/login" className="text-sm text-violet-700 hover:underline">
+        <Link href="/login" className="text-sm text-teal-700 hover:underline">
           Go to sign in
         </Link>
       </div>

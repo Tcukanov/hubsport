@@ -58,7 +58,7 @@ export function originOf(req: Request) {
   return host ? `${proto}://${host}` : new URL(req.url).origin;
 }
 
-const COLORS = ["#7c3aed", "#0d9488", "#d97706", "#db2777", "#2563eb", "#059669", "#dc2626", "#4f46e5"];
+const COLORS = ["#0f766e", "#0d9488", "#d97706", "#db2777", "#2563eb", "#059669", "#dc2626", "#4f46e5"];
 export const colorFor = (n: number) => COLORS[n % COLORS.length];
 
 export const publicUser = (u: AppUser): User => ({ id: u.id, name: u.name, email: u.email, color: u.color, role: u.role });

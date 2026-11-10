@@ -31,7 +31,7 @@ export default function FormPage() {
   if (!form)
     return (
       <Empty title="Form not found">
-        <Link href="/forms" className="text-sm text-violet-700 hover:underline">
+        <Link href="/forms" className="text-sm text-teal-700 hover:underline">
           Back to forms
         </Link>
       </Empty>
@@ -56,13 +56,13 @@ export default function FormPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input
           aria-label="Form name"
-          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-stone-900 outline-none hover:border-stone-300 focus:border-violet-500 focus:bg-white"
+          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-stone-900 outline-none hover:border-stone-300 focus:border-teal-500 focus:bg-white"
           value={form.name}
           onChange={(e) => set({ name: e.target.value })}
         />
         <Badge tone={published ? "emerald" : "stone"}>{published ? "Published" : "Draft"}</Badge>
         {published && (
-          <a href={`/f/${id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-violet-700 hover:underline">
+          <a href={`/f/${id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-teal-700 hover:underline">
             Open live form
             <ExternalLink size={14} />
           </a>
@@ -96,7 +96,7 @@ export default function FormPage() {
                         <input
                           type="checkbox"
                           aria-label={`Include ${item.label}`}
-                          className="h-4 w-4 accent-violet-600"
+                          className="h-4 w-4 accent-teal-600"
                           checked={!!field}
                           disabled={locked}
                           onChange={(e) => setFields(e.target.checked ? [...form.fields, item] : form.fields.filter((f) => f.key !== item.key))}
@@ -107,7 +107,7 @@ export default function FormPage() {
                             <label className="flex items-center gap-1.5 text-xs text-stone-600">
                               <input
                                 type="checkbox"
-                                className="h-3.5 w-3.5 accent-violet-600"
+                                className="h-3.5 w-3.5 accent-teal-600"
                                 checked={field.required}
                                 disabled={locked}
                                 onChange={(e) => setFields(form.fields.map((f) => (f.key === item.key ? { ...f, required: e.target.checked } : f)))}
@@ -186,7 +186,7 @@ export default function FormPage() {
                     <tr key={s.id} className="align-top hover:bg-stone-50">
                       <td className="px-4 py-2.5 font-medium">
                         {contact ? (
-                          <Link href={`/contacts/${contact.id}`} className="text-violet-700 hover:underline">
+                          <Link href={`/contacts/${contact.id}`} className="text-teal-700 hover:underline">
                             {displayName("contacts", contact)}
                           </Link>
                         ) : (
